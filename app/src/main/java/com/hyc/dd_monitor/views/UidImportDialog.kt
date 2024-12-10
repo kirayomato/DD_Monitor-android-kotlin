@@ -21,6 +21,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.util.regex.Pattern
+import com.hyc.dd_monitor.headers
 
 class UidImportDialog(context: Context) : Dialog(context) {
 
@@ -185,7 +186,7 @@ class UidImportDialog(context: Context) : Dialog(context) {
         OkHttpClient().newCall(
             Request.Builder()
                 .url("https://api.bilibili.com/x/relation/followings?vmid=$uid&pn=$pn&ps=50&order=desc&jsonp=jsonp")
-//                .addHeader("Connection", "close")
+                .headers(headers)
                 .build()
         ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -238,7 +239,7 @@ class UidImportDialog(context: Context) : Dialog(context) {
             Request.Builder()
                 .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
                 .method("POST", body)
-//                .addHeader("Connection", "close")
+                .headers(headers)
                 .build()
         ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {

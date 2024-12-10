@@ -21,15 +21,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import com.google.android.exoplayer2.ExoPlaybackException
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.SimpleExoPlayer
-import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.ui.PlayerView
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
-import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.hyc.dd_monitor.R
 import com.hyc.dd_monitor.models.PlayerOptions
@@ -45,6 +40,7 @@ import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.zip.InflaterInputStream
+import com.hyc.dd_monitor.headers
 
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
@@ -60,7 +56,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var playerOptions = PlayerOptions()
 
     // 刷新画质
-    var qn: Int = 80
+    var qn: Int = 250
         set(value) {
             if (field != value) {
                 field = value
@@ -628,7 +624,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             OkHttpClient().newCall(
                     Request.Builder()
                             .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$value")
-//                    .addHeader("Connection", "close")
+                            .headers(headers)
                             .build()
             ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
@@ -676,7 +672,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             OkHttpClient().newCall(
                     Request.Builder()
                             .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$value&qn=$qn&platform=h5")
-//                        .addHeader("Connection", "close")
+                            .headers(headers)
                             .build()
             ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
@@ -738,7 +734,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             var total: Long = 0
 
                             handler.post {
-                                player?.addListener(object : Player.EventListener {
+                                player?.addListener(object : Player.Listener {
                                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                                         super.onIsPlayingChanged(isPlaying)
                                         Log.d("isplaying", isPlaying.toString())
@@ -787,7 +783,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                                 override fun onResponse(call: Call, response: Response) {
                                     Log.d("debug54", "response.code ${response.code}")
-                                    Log.d("debug54", response.header("Content-Type", ""))
+                                    response.header("Content-Type", "")
+                                        ?.let { Log.d("debug54", it) }
 //                                    if (response.code != 475) {
 //                                        handler.post {
 //                                            isRecording = false

@@ -10,7 +10,6 @@ import android.text.InputType
 import android.util.Log
 import android.view.*
 import android.view.inputmethod.EditorInfo
-import android.webkit.WebView
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -33,7 +32,30 @@ import java.io.IOException
 import java.net.URL
 import java.util.*
 import java.util.regex.Pattern
-import kotlin.collections.HashMap
+
+var headers = Headers.Builder()
+    .add(
+        "accept",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+    )
+    .add("accept-encoding", "utf-8, deflate, zstd")
+    .add("accept-language", "zh-CN,zh;q=0.9")
+    .add("cache-control", "max-age=0")
+    .add(
+        "sec-ch-ua",
+        "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+    )
+    .add("sec-ch-ua-mobile", "?0")
+    .add("sec-ch-ua-platform", "\"Windows\"")
+    .add("sec-fetch-dest", "document")
+    .add("sec-fetch-mode", "navigate")
+    .add("sec-fetch-site", "none")
+    .add("sec-fetch-user", "?1")
+    .add(
+        "user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    )
+    .build()
 
 class MainActivity : AppCompatActivity() {
 
@@ -656,9 +678,7 @@ class MainActivity : AppCompatActivity() {
                             OkHttpClient().newCall(
                                 Request.Builder()
                                     .url(it)
-//                                    .header("User-Agent", "PythonRequests")
-                                    .header("User-Agent", WebView(this).settings.userAgentString)
-                                    .header("Accept", "*/*")
+                                    .headers(headers)
                                     .build()
                             ).enqueue(object : Callback {
                                 override fun onFailure(call: Call, e: IOException) {
@@ -721,7 +741,7 @@ class MainActivity : AppCompatActivity() {
     fun loadUpInfo(roomId: String, finished: ((realRoomId: String) -> Unit)? = null) {
         OkHttpClient().newCall(Request.Builder()
             .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId")
-//            .addHeader("Connection", "close")
+            .headers(headers)
             .build()
         ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -769,6 +789,7 @@ class MainActivity : AppCompatActivity() {
                             uplistviewAdapter.notifyDataSetInvalidated()
                         }
                     }catch (e: Exception) {
+                        Log.d("Exception", e.toString())
                         runOnUiThread {
                             Toast.makeText(this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT).show()
                         }
@@ -790,7 +811,7 @@ class MainActivity : AppCompatActivity() {
                 Request.Builder()
                     .url("https://api.live.bilibili.com/room/v2/Room/get_by_ids")
                     .method("POST", body)
-//                    .addHeader("Connection", "close")
+                    .headers(headers)
                     .build()
         ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -818,7 +839,7 @@ class MainActivity : AppCompatActivity() {
                                 Request.Builder()
                                     .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
                                     .method("POST", body1)
-//                                    .addHeader("Connection", "close")
+                                    .headers(headers)
                                     .build()
                         ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
