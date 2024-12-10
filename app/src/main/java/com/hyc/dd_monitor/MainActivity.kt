@@ -367,7 +367,7 @@ class MainActivity : AppCompatActivity() {
             val pop = PopupMenu(this, qnBtn)
             pop.menuInflater.inflate(R.menu.qn_menu, pop.menu)
             pop.setOnMenuItemClickListener {
-                var newQn = 80
+                var newQn = 250
                 when (it.itemId) {
                     R.id.qn_10000 -> newQn = 10000
                     R.id.qn_400 -> newQn = 400

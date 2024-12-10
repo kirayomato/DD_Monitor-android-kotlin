@@ -2,7 +2,7 @@ package com.hyc.dd_monitor.models
 
 class PlayerOptions {
     var volume: Float = 1f
-    var qn: Int = 80
+    var qn: Int = 250
     var isDanmuShow = true
     var danmuSize: Int = 13
     var danmuPosition: Int = 0
