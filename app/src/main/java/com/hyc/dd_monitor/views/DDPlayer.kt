@@ -41,8 +41,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.zip.InflaterInputStream
 import com.hyc.dd_monitor.headers
+import java.nio.ByteBuffer
 
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
+    
+
+    val __headers = headers.newBuilder()
+    var host = "broadcastlv.chat.bilibili.com"
+    var token = ""
 
     // 设置窗口序号#
     var playerId: Int = playerId
@@ -133,6 +139,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var volumeChangedListener: SeekBar.OnSeekBarChangeListener
 
     init {
+        __headers.set("connection","Upgrade")
+        __headers.set("accept-encoding","gzip, deflate, br, zstd")
+
         layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -575,6 +584,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
      * roomId setter 设置后立即开始加载播放
      */
     var roomId: String? = null
+        
         set(value) {
             // 初始化播放器相关、弹幕socket相关的对象
             playerView.player = null
@@ -615,9 +625,47 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             }
 
             // 到这了就表示不为空了，开始加载
-
             playerNameBtn.text = "#${playerId+1}: 加载中"
+            
+            __headers.set("referer","https://live.bilibili.com/${value}")
+            OkHttpClient().newCall(
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${value}")
+                    .headers(headers)
+                    .build()
+            ).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.d("Exception", "Request failed: $e")
+                }
 
+                override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        Log.d("Exception", "Request failed with code: ${response.code}")
+                        return
+                    }
+
+                    response.body?.let {
+                        try {
+                            val bodyString = it.string()
+                            Log.d("loadinfo", bodyString)
+
+                            val jo = JSONObject(bodyString)
+                            val data = jo.getJSONObject("data")
+                            token = data.getString("token")
+                            host = data.getJSONArray("host_list")
+                                .getJSONObject(0)
+                                .getString("host")
+
+                            Log.d("Updated Token", token)
+                            Log.d("Updated Host", host)
+                        } catch (e: Exception) {
+                            Log.d("Exception", "Parsing error: $e")
+                        }
+                    } ?: run {
+                        Log.d("Exception", "Response body is null")
+                    }
+                }
+            })
             checkAndToastCellular()
 
             // 加载基础信息
@@ -628,10 +676,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             .build()
             ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-
+                    Log.d("Exception", "Request failed: $e")
                 }
 
                 override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        Log.d("Exception", "Request failed with code: ${response.code}")
+                        return
+                    }
                     response.body?.let {
                         try {
                             val jo = JSONObject(it.string())
@@ -676,10 +728,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             .build()
             ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
-
+                    Log.d("Exception", "Request failed: $e")
                 }
 
                 override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        Log.d("Exception", "Request failed with code: ${response.code}")
+                        return
+                    }
                     response.body?.let { it2 ->
                         var url = ""
                         try {
@@ -773,6 +829,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                             OkHttpClient().newCall(
                                 Request.Builder()
+                                    .headers(__headers.build())
                                     .url(url)
                                     .build()
                             ).enqueue(object : Callback {
@@ -872,43 +929,50 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
     }
 
+
     var reconnecting = false
     fun connectDanmu() {
-        socket = OkHttpClient.Builder().build().newWebSocket(Request.Builder()
-            .url(
-                "wss://broadcastlv.chat.bilibili.com:2245/sub"
-            ).build(), object : WebSocketListener() {
+        socket = OkHttpClient.Builder().build().newWebSocket(
+            Request.Builder()
+            .url("wss://${host}:2245/sub")
+            .headers(__headers.build())
+            .build(), object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 super.onOpen(webSocket, response)
                 Log.d("danmu", "open")
 
                 // 连接成功，发送加入直播间的请求
 //                val req = "{\"roomid\":$roomId}"
+                fun encode(op: Int, msg: String): ByteArray {
+                    val body = msg.toByteArray(Charsets.UTF_8)
+                    val headerLength = 16
+                    val packetLength = headerLength + body.size
+                    val ver = 1
+                    val seq = 1
+
+                    val buffer = ByteBuffer.allocate(packetLength)
+                        .putInt(packetLength) // Packet length
+                        .putShort(headerLength.toShort()) // Header length
+                        .putShort(ver.toShort()) // Protocol version
+                        .putInt(op) // Operation
+                        .putInt(seq) // Sequence ID
+
+                    return buffer.put(body).array()
+                }
                 val reqJson = JSONObject()
                 reqJson.put("roomid", roomId!!.toInt())
                 reqJson.put("protover", 3)
+                reqJson.put("uid",0)
+                reqJson.put("platform","web")
+                reqJson.put("type",2)
+                reqJson.put("key", token)
+
                 val req = reqJson.toString()
                 Log.d("danmu", "req $req")
-                val payload = ByteArray(16 + req.length)
 
-                val head = byteArrayOf(
-                    0x00, 0x00, 0x00, (16 + req.length).toByte(),
-                    0x00, 0x10, 0x00, 0x01,
-                    0x00, 0x00, 0x00, 0x07,
-                    0x00, 0x00, 0x00, 0x01
-                )
+                val payload = encode(7, req)
 
-                System.arraycopy(head, 0, payload, 0, head.size)
-                val reqBytes = req.toByteArray()
-                System.arraycopy(
-                    reqBytes,
-                    0,
-                    payload,
-                    head.size,
-                    reqBytes.size
-                )
-
-                socket?.send(payload.toByteString(0, payload.size))
+                socket?.send(payload.toByteString())
 
                 // 开始心跳包发送
                 socketTimer = Timer()
@@ -916,17 +980,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     override fun run() {
                         Log.d("danmu", "heartbeat")
 //                        val obj = "[object Object]"
-                        val byteArray = byteArrayOf(
-                            0x00, 0x00, 0x00, 0x10,//(16+obj.length).toByte(),
-                            0x00, 0x10, 0x00, 0x01,
-                            0x00, 0x00, 0x00, 0x02,
-                            0x00, 0x00, 0x00, 0x01
-                        )
+                        val heartbeat = encode(2, "")
 //                        byteArray.addAll(obj.toByteArray().toList())
 //                        socket?.send(
 //                            byteArray.toByteArray().toByteString()
 //                        )
-                        socket?.send(byteArray.toByteString())
+                        socket?.send(heartbeat.toByteString())
                     }
 
                 }, 0, 30000)

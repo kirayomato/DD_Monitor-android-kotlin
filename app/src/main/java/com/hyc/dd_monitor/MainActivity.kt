@@ -36,11 +36,15 @@ import java.util.regex.Pattern
 var headers = Headers.Builder()
     .add(
         "accept",
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+        "application/json, text/plain, */*"
     )
     .add("accept-encoding", "utf-8, deflate, zstd")
-    .add("accept-language", "zh-CN,zh;q=0.9")
-    .add("cache-control", "max-age=0")
+    .add("accept-language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+    .add("cache-control", "no-cache")
+    .add("pragma","no-cache")
+    .add("connection","keep-alive")
+    .add("origin","https://live.bilibili.com")
+    .add("referer","https://live.bilibili.com/27628019")
     .add(
         "sec-ch-ua",
         "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
