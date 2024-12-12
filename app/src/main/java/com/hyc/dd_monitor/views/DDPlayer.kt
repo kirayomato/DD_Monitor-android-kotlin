@@ -1107,26 +1107,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
 //                                Log.d("danmu", "$roomId $danmu")
                                     handler.post {
-                                        // 弹幕目前最多显示20条，是否要搞一个设置项？
-                                        if (danmuList.count() > 20) {
-                                            danmuList.removeFirst()
-                                        }
                                         danmuList.add(Pair(danmu, emojiUrl))
                                         danmuListViewAdapter.notifyDataSetInvalidated()
                                         danmuListView.setSelection(danmuListView.bottom)
-
-                                        // 过滤同传弹幕
-                                        if (danmu.contains("【") || danmu.contains("[") || danmu.contains(
-                                                "{"
-                                                                                                        )
-                                        ) {
-                                            if (interpreterList.count() > 20) {
-                                                interpreterList.removeAt(0)
-                                            }
-                                            interpreterList.add(danmu)
-                                            interpreterViewAdapter.notifyDataSetInvalidated()
-                                            interpreterListView.setSelection(interpreterListView.bottom)
-                                        }
+                                        
                                     }
                                     if (isRecording) {
                                         try {
@@ -1154,16 +1138,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                     Log.d("SC", jobj.toString())
                                     val danmu = jobj.getJSONObject("data").getString("message")
                                     handler.post {
-                                        if (danmuList.count() > 20) {
-                                            danmuList.removeAt(0)
-                                        }
                                         danmuList.add(Pair("[SC] $danmu", null))
                                         danmuListViewAdapter.notifyDataSetInvalidated()
                                         danmuListView.setSelection(danmuListView.bottom)
-
-                                        if (interpreterList.count() > 20) {
-                                            interpreterList.removeAt(0)
-                                        }
                                         interpreterList.add("[SC] $danmu")
                                         interpreterViewAdapter.notifyDataSetInvalidated()
                                         interpreterListView.setSelection(interpreterListView.bottom)
