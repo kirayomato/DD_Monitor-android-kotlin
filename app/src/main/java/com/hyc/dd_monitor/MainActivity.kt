@@ -33,33 +33,20 @@ import java.net.URL
 import java.util.*
 import java.util.regex.Pattern
 
-var headers = Headers.Builder()
+var headers = Headers.Builder().add(
+    "accept", "application/json, text/plain, */*"
+).add("accept-encoding", "utf-8, deflate, zstd")
+    .add("accept-language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7").add("cache-control", "no-cache")
+    .add("pragma", "no-cache").add("connection", "keep-alive")
+    .add("origin", "https://live.bilibili.com").add("referer", "https://live.bilibili.com/27628019")
     .add(
-        "accept",
-        "application/json, text/plain, */*"
-    )
-    .add("accept-encoding", "utf-8, deflate, zstd")
-    .add("accept-language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-    .add("cache-control", "no-cache")
-    .add("pragma", "no-cache")
-    .add("connection", "keep-alive")
-    .add("origin", "https://live.bilibili.com")
-    .add("referer", "https://live.bilibili.com/27628019")
-    .add(
-        "sec-ch-ua",
-        "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
-    )
-    .add("sec-ch-ua-mobile", "?0")
-    .add("sec-ch-ua-platform", "\"Windows\"")
-    .add("sec-fetch-dest", "document")
-    .add("sec-fetch-mode", "navigate")
-    .add("sec-fetch-site", "none")
-    .add("sec-fetch-user", "?1")
-    .add(
+        "sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+    ).add("sec-ch-ua-mobile", "?0").add("sec-ch-ua-platform", "\"Windows\"")
+    .add("sec-fetch-dest", "document").add("sec-fetch-mode", "navigate")
+    .add("sec-fetch-site", "none").add("sec-fetch-user", "?1").add(
         "user-agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    )
-    .build()
+    ).build()
 
 class MainActivity : AppCompatActivity() {
 
@@ -137,12 +124,10 @@ class MainActivity : AppCompatActivity() {
 
         // 安卓9/10以上申请存储权限
         ActivityCompat.requestPermissions(
-            this,
-            arrayOf(
+            this, arrayOf(
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 android.Manifest.permission.READ_EXTERNAL_STORAGE
-            ),
-            111
+            ), 111
         )
 
         drawer = findViewById(R.id.main_drawer)
@@ -162,7 +147,8 @@ class MainActivity : AppCompatActivity() {
             if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
                 if (toolbar.visibility == View.GONE) {
                     toolbar.visibility = View.VISIBLE
-                } else {
+                }
+                else {
                     toolbar.visibility = View.GONE
                 }
             }
@@ -218,14 +204,16 @@ class MainActivity : AppCompatActivity() {
                             .into(shadow) // 用于拖动的头像view
                         Picasso.get().load(upInfo?.faceImageUrl).transform(RoundImageTransform())
                             .into(face)
-                    } catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         face.setImageDrawable(null)
                         shadow.setImageDrawable(null)
                     }
 
                     try {
                         Picasso.get().load(upInfo?.coverImageUrl).into(cover)
-                    } catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         cover.setImageDrawable(null)
                     }
 
@@ -240,21 +228,24 @@ class MainActivity : AppCompatActivity() {
                     if (upInfo?.uname != null) {
                         uname.text = upInfo.uname
                         uname.setBackgroundColor(Color.TRANSPARENT)
-                    } else {
+                    }
+                    else {
                         uname.text = ""
                         uname.setBackgroundColor(Color.BLACK)
                     }
                     if (upInfo?.title != null) {
                         title.text = upInfo.title
                         title.setBackgroundColor(Color.TRANSPARENT)
-                    } else {
+                    }
+                    else {
                         title.text = ""
                         title.setBackgroundColor(Color.BLACK)
                     }
 
                     if (upInfo?.isLive == true) {
                         isLiveCover.visibility = View.GONE
-                    } else {
+                    }
+                    else {
                         isLiveCover.visibility = View.VISIBLE
                         isLiveCover.text = "未开播"
                     }
@@ -291,9 +282,7 @@ class MainActivity : AppCompatActivity() {
             Log.d("long click", i.toString())
 
             val clipData = ClipData(
-                "roomId",
-                arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
-                ClipData.Item(uplist[i])
+                "roomId", arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN), ClipData.Item(uplist[i])
             )
             clipData.addItem(ClipData.Item(upinfos[uplist[i]]?.faceImageUrl))
 
@@ -330,10 +319,12 @@ class MainActivity : AppCompatActivity() {
                         intent.data = Uri.parse("bilibili://live/${uplist[i]}")
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
-                    } catch (_: Exception) {
+                    }
+                    catch (e: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW)
                         intent.data = Uri.parse("https://live.bilibili.com/${uplist[i]}")
                         startActivity(intent)
+                        Log.d("Exception", "Failed: $e")
                     }
                 }
                 return@setOnMenuItemClickListener true
@@ -411,8 +402,7 @@ class MainActivity : AppCompatActivity() {
         aboutBtn.setOnClickListener {
 //            throw Exception("oops")
             val ver = packageManager.getPackageInfo(packageName, 0).versionName
-            AlertDialog.Builder(this)
-                .setTitle("DD监控室 v${ver} by CongHu")
+            AlertDialog.Builder(this).setTitle("DD监控室 v${ver} by CongHu")
                 .setMessage("· 点击右上角“UP”按钮添加UP主，长按拖动到播放器窗口内。\n· 观看多个直播时请注意带宽网速、流量消耗、电池电量、机身发热、系统卡顿等软硬件环境问题。\n· 本软件仅读取公开API数据，不涉及账号登录，欢迎查看源码进行监督。因此，本软件不支持弹幕互动、直播打赏等功能，若要使用请前往原版B站APP。")
                 .setPositiveButton("B站视频") { _, _ ->
                     try {
@@ -420,14 +410,14 @@ class MainActivity : AppCompatActivity() {
                         intent.data = Uri.parse("bilibili://video/BV13y4y1b7bY")
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
-                    } catch (_: Exception) {
+                    }
+                    catch (e: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW)
                         intent.data = Uri.parse("https://www.bilibili.com/video/BV13y4y1b7bY")
                         startActivity(intent)
+                        Log.d("Exception", "Failed: $e")
                     }
-                }
-                .setNegativeButton("关闭", null)
-                .show()
+                }.setNegativeButton("关闭", null).show()
         }
 
         timerTextView = findViewById(R.id.timer_textview)
@@ -447,17 +437,12 @@ class MainActivity : AppCompatActivity() {
                     R.id.timer_custom -> {
                         val et = EditText(this)
                         et.inputType = InputType.TYPE_CLASS_NUMBER
-                        AlertDialog.Builder(this)
-                            .setTitle("定时关闭（分钟）")
-                            .setView(et)
+                        AlertDialog.Builder(this).setTitle("定时关闭（分钟）").setView(et)
                             .setPositiveButton("确定") { _, _ ->
                                 et.text.toString().toIntOrNull()?.let { min ->
-                                    if (min in 1..99)
-                                        autoSleepTimerSet(min)
+                                    if (min in 1..99) autoSleepTimerSet(min)
                                 }
-                            }
-                            .setNegativeButton("取消", null)
-                            .show()
+                            }.setNegativeButton("取消", null).show()
                         et.requestFocus()
                     }
                 }
@@ -474,7 +459,8 @@ class MainActivity : AppCompatActivity() {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
                 window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
                 toolbar.visibility = View.VISIBLE
-            } else {
+            }
+            else {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
                 toolbar.visibility = View.GONE
@@ -531,15 +517,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.add_up_btn).setOnClickListener {
             val et = EditText(this)
             et.inputType = InputType.TYPE_CLASS_NUMBER
-            AlertDialog.Builder(this)
-                .setTitle("添加直播间id")
+            AlertDialog.Builder(this).setTitle("添加直播间id")
                 .setMessage("提示：输入完成可按回车键/换行键，此窗口不关闭，可继续输入添加。")
-                .setView(et)
-                .setPositiveButton("确定") { _, _ ->
+                .setView(et).setPositiveButton("确定") { _, _ ->
                     addRoomId(et.text.toString())
-                }
-                .setNegativeButton("取消", null)
-                .show()
+                }.setNegativeButton("取消", null).show()
 //            et.requestFocus()
 
             // 输入框监听回车键
@@ -636,7 +618,8 @@ class MainActivity : AppCompatActivity() {
                 val res = IntentIntegrator.parseActivityResult(resultCode, data).contents
                 Log.d("scanqr", res)
                 addFromUrl(res)
-            } catch (e: Exception) {
+            }
+            catch (e: Exception) {
                 Log.d("Exception", "Failed: $e")
             }
 
@@ -652,8 +635,7 @@ class MainActivity : AppCompatActivity() {
                 // 是否需要正则匹配数字？
                 val urlId = url.path.replace("/", "")
                 urlId.toIntOrNull()?.let { roomId ->
-                    AlertDialog.Builder(this)
-                        .setTitle("添加id $roomId ?")
+                    AlertDialog.Builder(this).setTitle("添加id $roomId ?")
                         .setPositiveButton("是") { _, _ ->
                             if (uplist.contains(roomId.toString())) {
                                 Toast.makeText(this, "已存在", Toast.LENGTH_SHORT).show()
@@ -679,14 +661,14 @@ class MainActivity : AppCompatActivity() {
                                     loadManyUpInfos()
                                 }
                             }
-                        }
-                        .setNegativeButton("否", null)
-                        .show()
+                        }.setNegativeButton("否", null).show()
 
 
                 }
             }
-        } catch (_: Exception) {
+        }
+        catch (e: Exception) {
+            Log.d("Exception", "Failed: $e")
         }
     }
 
@@ -695,22 +677,15 @@ class MainActivity : AppCompatActivity() {
             """【.*】\s*(https?://\S+)""".toRegex().find(clip)?.groupValues?.get(1)?.let {
                 val url = URL(it)
                 if (listOf("b23.tv").contains(url.host)) {
-                    AlertDialog.Builder(this)
-                        .setTitle("尝试解析解析剪贴板的分享链接？")
-                        .setMessage(clip)
-                        .setPositiveButton("是") { _, _ ->
+                    AlertDialog.Builder(this).setTitle("尝试解析解析剪贴板的分享链接？")
+                        .setMessage(clip).setPositiveButton("是") { _, _ ->
                             OkHttpClient().newCall(
-                                Request.Builder()
-                                    .url(it)
-                                    .headers(headers)
-                                    .build()
+                                Request.Builder().url(it).headers(headers).build()
                             ).enqueue(object : Callback {
                                 override fun onFailure(call: Call, e: IOException) {
                                     runOnUiThread {
                                         Toast.makeText(
-                                            this@MainActivity,
-                                            "短链接解析失败",
-                                            Toast.LENGTH_SHORT
+                                            this@MainActivity, "短链接解析失败", Toast.LENGTH_SHORT
                                         ).show()
                                     }
                                 }
@@ -743,8 +718,7 @@ class MainActivity : AppCompatActivity() {
                                                 uplist.add(0, realRoomId)
                                                 getSharedPreferences("sp", MODE_PRIVATE).edit {
                                                     this.putString(
-                                                        "uplist",
-                                                        uplist.joinToString(" ")
+                                                        "uplist", uplist.joinToString(" ")
                                                     ).apply()
                                                 }
 //                                                    uplistview.invalidateViews()
@@ -756,7 +730,8 @@ class MainActivity : AppCompatActivity() {
                                                 loadManyUpInfos()
                                             }
                                         }
-                                    } catch (e: Exception) {
+                                    }
+                                    catch (e: Exception) {
                                         e.printStackTrace()
                                         runOnUiThread {
                                             Toast.makeText(
@@ -770,12 +745,12 @@ class MainActivity : AppCompatActivity() {
 
                             })
 
-                        }
-                        .setNegativeButton("否", null)
-                        .show()
+                        }.setNegativeButton("否", null).show()
                 }
             }
-        } catch (_: Exception) {
+        }
+        catch (e: Exception) {
+            Log.d("Exception", "Failed: $e")
         }
 
 
@@ -786,8 +761,7 @@ class MainActivity : AppCompatActivity() {
         OkHttpClient().newCall(
             Request.Builder()
                 .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId")
-                .headers(headers)
-                .build()
+                .headers(headers).build()
         ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
@@ -834,13 +808,12 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread {
                             uplistviewAdapter.notifyDataSetInvalidated()
                         }
-                    } catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         Log.d("Exception", e.toString())
                         runOnUiThread {
                             Toast.makeText(
-                                this@MainActivity,
-                                "查询id失败 $roomId",
-                                Toast.LENGTH_SHORT
+                                this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT
                             ).show()
                         }
                     }
@@ -858,11 +831,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("loadinfo", postdata)
         val body = postdata.toRequestBody("application/json; charset=utf-8".toMediaType())
         OkHttpClient().newCall(
-            Request.Builder()
-                .url("https://api.live.bilibili.com/room/v2/Room/get_by_ids")
-                .method("POST", body)
-                .headers(headers)
-                .build()
+            Request.Builder().url("https://api.live.bilibili.com/room/v2/Room/get_by_ids")
+                .method("POST", body).headers(headers).build()
         ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
@@ -879,7 +849,8 @@ class MainActivity : AppCompatActivity() {
                         for (k in res.keys()) {
                             try {
                                 uids.add(res.getJSONObject(k).getInt("uid"))
-                            } catch (e: Exception) {
+                            }
+                            catch (e: Exception) {
                                 Log.d("Exception", "Request Failed: $e")
                             }
                         }
@@ -889,9 +860,7 @@ class MainActivity : AppCompatActivity() {
                         OkHttpClient().newCall(
                             Request.Builder()
                                 .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
-                                .method("POST", body1)
-                                .headers(headers)
-                                .build()
+                                .method("POST", body1).headers(headers).build()
                         ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
 
@@ -937,7 +906,8 @@ class MainActivity : AppCompatActivity() {
                                                 upInfo.coverImageUrl = keyframe
 
 
-                                            } catch (e: Exception) {
+                                            }
+                                            catch (e: Exception) {
                                                 Log.d("Exception", "Request Failed: $e")
                                             }
 
@@ -975,7 +945,8 @@ class MainActivity : AppCompatActivity() {
                                             }
 
                                         }
-                                    } catch (e: Exception) {
+                                    }
+                                    catch (e: Exception) {
                                         Log.d("Exception", "Request Failed: $e")
                                     }
                                 }
@@ -985,7 +956,8 @@ class MainActivity : AppCompatActivity() {
                         })
 
 
-                    } catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         e.printStackTrace()
 //                        handler.post {
 //                            Toast.makeText(context, "查询uid失败", Toast.LENGTH_SHORT).show()
@@ -1049,7 +1021,8 @@ class MainActivity : AppCompatActivity() {
             if (drawer.isDrawerOpen(GravityCompat.END)) {
                 drawer.closeDrawers()
                 return true
-            } else if (System.currentTimeMillis() - backPressTime > 2000) {
+            }
+            else if (System.currentTimeMillis() - backPressTime > 2000) {
                 Toast.makeText(this, "再按一次退出", Toast.LENGTH_SHORT).show()
                 backPressTime = System.currentTimeMillis()
                 return true
