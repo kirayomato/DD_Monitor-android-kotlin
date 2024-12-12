@@ -35,18 +35,18 @@ import java.util.regex.Pattern
 
 var headers = Headers.Builder().add(
     "accept", "application/json, text/plain, */*"
-).add("accept-encoding", "utf-8, deflate, zstd")
+                                   ).add("accept-encoding", "utf-8, deflate, zstd")
     .add("accept-language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7").add("cache-control", "no-cache")
     .add("pragma", "no-cache").add("connection", "keep-alive")
     .add("origin", "https://live.bilibili.com").add("referer", "https://live.bilibili.com/27628019")
     .add(
         "sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
-    ).add("sec-ch-ua-mobile", "?0").add("sec-ch-ua-platform", "\"Windows\"")
+        ).add("sec-ch-ua-mobile", "?0").add("sec-ch-ua-platform", "\"Windows\"")
     .add("sec-fetch-dest", "document").add("sec-fetch-mode", "navigate")
     .add("sec-fetch-site", "none").add("sec-fetch-user", "?1").add(
         "user-agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    ).build()
+                                                                  ).build()
 
 class MainActivity : AppCompatActivity() {
 
@@ -127,8 +127,8 @@ class MainActivity : AppCompatActivity() {
             this, arrayOf(
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 android.Manifest.permission.READ_EXTERNAL_STORAGE
-            ), 111
-        )
+                         ), 111
+                                         )
 
         drawer = findViewById(R.id.main_drawer)
         drawerContent = findViewById(R.id.drawer_content)
@@ -283,7 +283,7 @@ class MainActivity : AppCompatActivity() {
 
             val clipData = ClipData(
                 "roomId", arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN), ClipData.Item(uplist[i])
-            )
+                                   )
             clipData.addItem(ClipData.Item(upinfos[uplist[i]]?.faceImageUrl))
 
             view.startDragAndDrop(
@@ -291,7 +291,7 @@ class MainActivity : AppCompatActivity() {
                 View.DragShadowBuilder(view.findViewById(R.id.shadow_view)),
                 null,
                 View.DRAG_FLAG_GLOBAL
-            )
+                                 )
 
             drawer.closeDrawers()
             cancelDragView.visibility = View.VISIBLE
@@ -681,12 +681,12 @@ class MainActivity : AppCompatActivity() {
                         .setMessage(clip).setPositiveButton("是") { _, _ ->
                             OkHttpClient().newCall(
                                 Request.Builder().url(it).headers(headers).build()
-                            ).enqueue(object : Callback {
+                                                  ).enqueue(object : Callback {
                                 override fun onFailure(call: Call, e: IOException) {
                                     runOnUiThread {
                                         Toast.makeText(
                                             this@MainActivity, "短链接解析失败", Toast.LENGTH_SHORT
-                                        ).show()
+                                                      ).show()
                                     }
                                 }
 
@@ -700,7 +700,7 @@ class MainActivity : AppCompatActivity() {
                                                     this@MainActivity,
                                                     "${roomId}已存在",
                                                     Toast.LENGTH_SHORT
-                                                ).show()
+                                                              ).show()
                                             }
                                             return
                                         }
@@ -711,7 +711,7 @@ class MainActivity : AppCompatActivity() {
                                                         this@MainActivity,
                                                         "${realRoomId}已存在",
                                                         Toast.LENGTH_SHORT
-                                                    ).show()
+                                                                  ).show()
                                                     return@runOnUiThread
                                                 }
 
@@ -719,7 +719,7 @@ class MainActivity : AppCompatActivity() {
                                                 getSharedPreferences("sp", MODE_PRIVATE).edit {
                                                     this.putString(
                                                         "uplist", uplist.joinToString(" ")
-                                                    ).apply()
+                                                                  ).apply()
                                                 }
 //                                                    uplistview.invalidateViews()
                                                 uplistviewAdapter.notifyDataSetInvalidated()
@@ -738,7 +738,7 @@ class MainActivity : AppCompatActivity() {
                                                 this@MainActivity,
                                                 "短链接解析失败",
                                                 Toast.LENGTH_SHORT
-                                            ).show()
+                                                          ).show()
                                         }
                                     }
                                 }
@@ -762,7 +762,7 @@ class MainActivity : AppCompatActivity() {
             Request.Builder()
                 .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId")
                 .headers(headers).build()
-        ).enqueue(object : Callback {
+                              ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
             }
@@ -814,7 +814,7 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread {
                             Toast.makeText(
                                 this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT
-                            ).show()
+                                          ).show()
                         }
                     }
 
@@ -833,7 +833,7 @@ class MainActivity : AppCompatActivity() {
         OkHttpClient().newCall(
             Request.Builder().url("https://api.live.bilibili.com/room/v2/Room/get_by_ids")
                 .method("POST", body).headers(headers).build()
-        ).enqueue(object : Callback {
+                              ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
             }
@@ -861,7 +861,7 @@ class MainActivity : AppCompatActivity() {
                             Request.Builder()
                                 .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
                                 .method("POST", body1).headers(headers).build()
-                        ).enqueue(object : Callback {
+                                              ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
 
                             }
@@ -931,13 +931,13 @@ class MainActivity : AppCompatActivity() {
                                                         window.decorView,
                                                         "${reportLiveStartingList.joinToString(", ")} 开播了",
                                                         Snackbar.LENGTH_LONG
-                                                    ).setAction("关闭") {}.show()
+                                                                 ).setAction("关闭") {}.show()
                                                 }
                                                 for (i in 0 until ddLayout.layoutPlayerCount) {
                                                     val p = ddLayout.players[i]
                                                     if (p.roomId != null && reportLiveStartingList.contains(
                                                             p.roomId
-                                                        )
+                                                                                                           )
                                                     ) {
                                                         p.roomId = p.roomId
                                                     }

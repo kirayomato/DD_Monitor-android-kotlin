@@ -67,7 +67,7 @@ import java.util.zip.InflaterInputStream
 
 
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
-    
+
 
     val liveHeaders = headers.newBuilder()
     var host = "broadcastlv.chat.bilibili.com"
@@ -169,7 +169,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-        )
+                                             )
 
         View.inflate(context, R.layout.dd_player, this)
         Log.d("DDPlayer", "init")
@@ -406,8 +406,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     "layoutId",
                     arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
                     ClipData.Item(this@DDPlayer.playerId.toString())
-                ), DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
-            )
+                        ), DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
+                            )
             return@setOnLongClickListener true
         }
 
@@ -619,7 +619,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
      * roomId setter 设置后立即开始加载播放
      */
     var roomId: String? = null
-        
         set(value) {
             // 初始化播放器相关、弹幕socket相关的对象
             playerView.player = null
@@ -667,7 +666,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 Request.Builder()
                     .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${value}")
                     .headers(headers).build()
-            ).enqueue(object : Callback {
+                                  ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.d("Exception", "Request failed: $e")
                 }
@@ -706,7 +705,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 Request.Builder()
                     .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$value")
                     .headers(headers).build()
-            ).enqueue(object : Callback {
+                                  ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.d("Exception", "Request failed: $e")
                 }
@@ -760,7 +759,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 Request.Builder()
                     .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$value&qn=$qn&platform=h5")
                     .headers(headers).build()
-            ).enqueue(object : Callback {
+                                  ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.d("Exception", "Request failed: $e")
                 }
@@ -863,7 +862,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                             OkHttpClient().newCall(
                                 Request.Builder().headers(liveHeaders.build()).url(url).build()
-                            ).enqueue(object : Callback {
+                                                  ).enqueue(object : Callback {
                                 override fun onFailure(call: Call, e: IOException) {
                                     Log.d("debug54", "response onFailure")
                                     e.printStackTrace()
@@ -904,7 +903,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                             if (!loaded) {
                                                 loaded = true
                                                 handler.post {
-                                                    player!!.setMediaItem(MediaItem.fromUri(cacheFile.toUri()))
+                                                    player!!.setMediaItem(
+                                                        MediaItem.fromUri(
+                                                            cacheFile.toUri()
+                                                                         )
+                                                                         )
                                                 }
                                             }
 
@@ -917,7 +920,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                                 context,
                                                 "录像已保存${cacheFile.path}",
                                                 Toast.LENGTH_SHORT
-                                            ).show()
+                                                          ).show()
                                         }
                                         outputStream.close()
 
@@ -972,7 +975,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     fun connectDanmu() {
         socket = OkHttpClient.Builder().build()
             .newWebSocket(Request.Builder().url("wss://${host}:2245/sub")
-                .headers(liveHeaders.build()).build(), object : WebSocketListener() {
+                              .headers(liveHeaders.build()).build(), object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     super.onOpen(webSocket, response)
                     Log.d("danmu", "open")
@@ -1030,27 +1033,27 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                 override fun onMessage(
                     webSocket: WebSocket, bytes: ByteString
-                ) {
+                                      ) {
                     super.onMessage(webSocket, bytes)
                     val byteArray = bytes.toByteArray()
 //                Log.d("danmu", bytes.hex())
-                if (!reconnecting && byteArray[11] == 8.toByte()) {
-                    handler.post {
-                        danmuList.add(Pair("[系统] 已连接弹幕",null))
-                        danmuListViewAdapter.notifyDataSetInvalidated()
-                        danmuListView.setSelection(danmuListView.bottom)
-                        interpreterList.add("[系统] 已连接弹幕")
-                        interpreterViewAdapter.notifyDataSetInvalidated()
-                        interpreterListView.setSelection(interpreterListView.bottom)
+                    if (!reconnecting && byteArray[11] == 8.toByte()) {
+                        handler.post {
+                            danmuList.add(Pair("[系统] 已连接弹幕", null))
+                            danmuListViewAdapter.notifyDataSetInvalidated()
+                            danmuListView.setSelection(danmuListView.bottom)
+                            interpreterList.add("[系统] 已连接弹幕")
+                            interpreterViewAdapter.notifyDataSetInvalidated()
+                            interpreterListView.setSelection(interpreterListView.bottom)
+                        }
                     }
-                }
-                reconnecting = false
-                if (byteArray[7] == 3.toByte() || byteArray[7] == 2.toByte()) {
+                    reconnecting = false
+                    if (byteArray[7] == 3.toByte() || byteArray[7] == 2.toByte()) {
 
                         // 解压
                         val bis = ByteArrayInputStream(
                             byteArray, 16, byteArray.size - 16
-                        )
+                                                      )
                         var iis: InputStream? = null
                         if (byteArray[7] == 3.toByte()) {
                             iis = BrotliInputStream(bis)
@@ -1087,7 +1090,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                Log.d("danmu", "$nextLen = $b2 *256 + $b3 / $len / ${unzipped.size}")
                                 val jstr = String(
                                     unzipped, len + 16, nextLen - 16, Charsets.UTF_8
-                                )
+                                                 )
 //                            Log.d("danmu", jstr)
                                 val jobj = JSONObject(jstr)
                                 val cmd = jobj.getString("cmd")
@@ -1103,19 +1106,19 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                     val danmu = jobj.getJSONArray("info").getString(1)
 
 //                                Log.d("danmu", "$roomId $danmu")
-                                handler.post {
-                                    // 弹幕目前最多显示20条，是否要搞一个设置项？
-                                    if (danmuList.count() > 20) {
-                                        danmuList.removeFirst()
-                                    }
-                                    danmuList.add(Pair(danmu,emojiUrl))
-                                    danmuListViewAdapter.notifyDataSetInvalidated()
-                                    danmuListView.setSelection(danmuListView.bottom)
+                                    handler.post {
+                                        // 弹幕目前最多显示20条，是否要搞一个设置项？
+                                        if (danmuList.count() > 20) {
+                                            danmuList.removeFirst()
+                                        }
+                                        danmuList.add(Pair(danmu, emojiUrl))
+                                        danmuListViewAdapter.notifyDataSetInvalidated()
+                                        danmuListView.setSelection(danmuListView.bottom)
 
                                         // 过滤同传弹幕
                                         if (danmu.contains("【") || danmu.contains("[") || danmu.contains(
                                                 "{"
-                                            )
+                                                                                                        )
                                         ) {
                                             if (interpreterList.count() > 20) {
                                                 interpreterList.removeAt(0)
@@ -1137,9 +1140,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                                 "${
                                                     RecordingUtils.minuteString(
                                                         recordingDurationLong
-                                                    )
+                                                                               )
                                                 } $danmu\n"
-                                            )
+                                                        )
                                             writer.close()
                                         }
                                         catch (e: Exception) {
@@ -1177,9 +1180,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                                 "${
                                                     RecordingUtils.minuteString(
                                                         recordingDurationLong
-                                                    )
+                                                                               )
                                                 } [SC] $danmu\n"
-                                            )
+                                                        )
                                             writer.close()
                                         }
                                         catch (e: Exception) {
@@ -1202,7 +1205,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                 override fun onFailure(
                     webSocket: WebSocket, t: Throwable, response: Response?
-                ) {
+                                      ) {
                     super.onFailure(webSocket, t, response)
                     Log.d("danmu", "$roomId fail ${t.message}")
                     t.printStackTrace()
@@ -1230,7 +1233,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                 override fun onClosing(
                     webSocket: WebSocket, code: Int, reason: String
-                ) {
+                                      ) {
                     super.onClosing(webSocket, code, reason)
                     Log.d("danmu", "closing")
 
@@ -1238,7 +1241,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                 override fun onClosed(
                     webSocket: WebSocket, code: Int, reason: String
-                ) {
+                                     ) {
                     super.onClosed(webSocket, code, reason)
                     Log.d("danmu", "close")
 //                __handler.post {
