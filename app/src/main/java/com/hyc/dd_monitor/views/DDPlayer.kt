@@ -15,8 +15,15 @@ import android.util.Log
 import android.view.DragEvent
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.WebView
-import android.widget.*
+import android.widget.BaseAdapter
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ListView
+import android.widget.PopupMenu
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.edit
@@ -27,26 +34,42 @@ import com.google.android.exoplayer2.SimpleExoPlayer
 import com.google.android.exoplayer2.ui.PlayerView
 import com.google.gson.Gson
 import com.hyc.dd_monitor.R
+import com.hyc.dd_monitor.headers
 import com.hyc.dd_monitor.models.PlayerOptions
 import com.hyc.dd_monitor.utils.RecordingUtils
 import com.hyc.dd_monitor.utils.RoundImageTransform
 import com.squareup.picasso.Picasso
-import okhttp3.*
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.brotli.dec.BrotliInputStream
 import org.json.JSONObject
-import java.io.*
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.zip.InflaterInputStream
-import com.hyc.dd_monitor.headers
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.FileWriter
+import java.io.IOException
+import java.io.InputStream
 import java.nio.ByteBuffer
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.Timer
+import java.util.TimerTask
+import java.util.zip.InflaterInputStream
+
 
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     
 
-    val __headers = headers.newBuilder()
+    val liveHeaders = headers.newBuilder()
     var host = "broadcastlv.chat.bilibili.com"
     var token = ""
 
@@ -54,7 +77,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var playerId: Int = playerId
         set(value) {
             playerNameBtn.text = playerNameBtn.text.replace(Regex("#${field + 1}"), "#${value + 1}")
-            shadowTextView.text = "#${value+1}"
+            shadowTextView.text = "#${value + 1}"
             field = value
 
         }
@@ -76,7 +99,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 }
                 if (isRecording) {
                     isRecording = false
-                }else{
+                } else {
                     this.roomId = roomId
                 }
                 playerOptions.qn = value
@@ -94,7 +117,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var danmuListViewAdapter: BaseAdapter
     var interpreterViewAdapter: BaseAdapter
 
-    var danmuList: MutableList<Pair<String,String?>> = mutableListOf()
+    var danmuList: MutableList<Pair<String, String?>> = mutableListOf()
     var interpreterList: MutableList<String> = mutableListOf()
 
     var onDragAndDropListener: ((drag: Int, drop: Int) -> Unit)? = null
@@ -133,18 +156,19 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var recordingTimer: Timer? = null
     var isRecording = false
     var recordingView: LinearLayout
-//    var recordingDuration: TextView
+
+    //    var recordingDuration: TextView
     var recordingSize: TextView
 
     var volumeChangedListener: SeekBar.OnSeekBarChangeListener
 
     init {
-        __headers.set("connection","Upgrade")
-        __headers.set("accept-encoding","gzip, deflate, br, zstd")
+        liveHeaders.set("connection", "Upgrade")
+        liveHeaders.set("accept-encoding", "gzip, deflate, br, zstd")
 
         layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
         )
 
         View.inflate(context, R.layout.dd_player, this)
@@ -166,7 +190,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
         recordingView.setOnClickListener {
             val pop = PopupMenu(context, recordingView)
-            pop.menu.add(0,999,0,"结束录像")
+            pop.menu.add(0, 999, 0, "结束录像")
             pop.setOnMenuItemClickListener {
                 if (it.itemId == 999) {
                     isRecording = false
@@ -199,7 +223,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     textview.visibility = GONE
                     imgview.visibility = VISIBLE
                     Picasso.get().load(danmuObj.second).into(imgview)
-                }else{
+                } else {
                     textview.visibility = VISIBLE
                     imgview.visibility = GONE
                 }
@@ -252,7 +276,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         // 音量调节
         volumeChangedListener = object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(p0: SeekBar?, p1: Int, p2: Boolean) {
-                player?.volume = if (isGlobalMuted) 0f else p1.toFloat()/100f
+                player?.volume = if (isGlobalMuted) 0f else p1.toFloat() / 100f
             }
 
             override fun onStartTrackingTouch(p0: SeekBar?) {
@@ -265,7 +289,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                if (p0 != null && p0 != volumeSlider) {
 //                    volumeSlider.progress = p0.progress
 //                }
-                playerOptions.volume = p0!!.progress.toFloat()/100f
+                playerOptions.volume = p0!!.progress.toFloat() / 100f
                 notifyPlayerOptionsChange()
             }
         }
@@ -289,8 +313,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         shadowFaceImg = findViewById(R.id.shadow_imageview)
         shadowTextView = findViewById(R.id.shadow_textview)
 
-        playerNameBtn.text = "#${playerId+1}: 空"
-        shadowTextView.text = "#${playerId+1}"
+        playerNameBtn.text = "#${playerId + 1}: 空"
+        shadowTextView.text = "#${playerId + 1}"
 
         // 点击窗口名称弹出菜单
         playerNameBtn.setOnClickListener {
@@ -315,15 +339,15 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 }
                 if (it.itemId == R.id.open_live) {
                     try {
-                        val intent = Intent()
+                        val intent = Intent(Intent.ACTION_VIEW)
                         intent.data = Uri.parse("bilibili://live/$roomId")
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         context.startActivity(intent)
 
                         playerOptions.volume = 0f
                         notifyPlayerOptionsChange()
-                    }catch (_: Exception) {
-                        val intent = Intent()
+                    } catch (_: Exception) {
+                        val intent = Intent(Intent.ACTION_VIEW)
                         intent.data = Uri.parse("https://live.bilibili.com/$roomId")
                         context.startActivity(intent)
                     }
@@ -376,12 +400,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             showControlBar()
 
             startDragAndDrop(
-                    ClipData(
-                        "layoutId",
-                        arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
-                        ClipData.Item(this@DDPlayer.playerId.toString())
-                    ),
-                    DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
+                ClipData(
+                    "layoutId",
+                    arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
+                    ClipData.Item(this@DDPlayer.playerId.toString())
+                ),
+                DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
             )
             return@setOnLongClickListener true
         }
@@ -402,13 +426,16 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                        this.playerId = dragPid
 //                        showControlBar()
                     }
-                }else if (label == "roomId") { // 从列表的卡片拖动进来
+                } else if (label == "roomId") { // 从列表的卡片拖动进来
                     // roomId setter 开始播放
                     roomId = dragEvent.clipData.getItemAt(0).text.toString()
                     val face = dragEvent.clipData.getItemAt(1).text.toString()
                     try {
-                        Picasso.get().load(face).transform(RoundImageTransform()).into(shadowFaceImg) // 用于拖动的头像view
-                    }catch (e: Exception) {}
+                        Picasso.get().load(face).transform(RoundImageTransform())
+                            .into(shadowFaceImg) // 用于拖动的头像view
+                    } catch (e: Exception) {
+                        Log.d("Exception", "Failed: $e")
+                    }
 //                    Log.d("shadowFaceImg", shadowFaceImg)
                     onCardDropListener?.invoke()
                     context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE).edit {
@@ -428,7 +455,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             // 单击显示/隐藏工具条
             if (controlBar.visibility == VISIBLE) {
                 controlBar.visibility = INVISIBLE
-            }else{
+            } else {
                 showControlBar()
             }
 //            volumeBar.visibility = INVISIBLE
@@ -438,7 +465,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 doubleClickTime = 0
                 Log.d("doubleclick", "doubleclick")
                 onDoubleClickListener?.invoke(this.playerId) // 全屏需要刷新layout
-            }else{
+            } else {
                 doubleClickTime = System.currentTimeMillis()
             }
 
@@ -448,18 +475,18 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         val typeface = Typeface.createFromAsset(context.assets, "iconfont.ttf")
 
         // 刷新按钮
-        refreshBtn = findViewById<Button>(R.id.refresh_btn)
+        refreshBtn = findViewById(R.id.refresh_btn)
         refreshBtn.typeface = typeface
         refreshBtn.setOnClickListener {
             if (isRecording) {
                 isRecording = false
-            }else{
+            } else {
                 this.roomId = roomId
             }
         }
 
         // 音量按钮
-        volumeBtn = findViewById<Button>(R.id.volume_btn)
+        volumeBtn = findViewById(R.id.volume_btn)
         volumeBtn.typeface = typeface
         volumeBtn.setOnClickListener {
 //            showControlBar()
@@ -529,14 +556,15 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         }
 
         // 读取播放器设置
-        context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE).getString("opts${this.playerId}", "")?.let {
+        context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)
+            .getString("opts${this.playerId}", "")?.let {
             try {
                 Log.d("playeroptions", "load $it")
                 playerOptions = Gson().fromJson(it, PlayerOptions::class.java)
                 qn = playerOptions.qn
                 notifyPlayerOptionsChange()
-            }catch (e: java.lang.Exception) {
-
+            } catch (e: java.lang.Exception) {
+                Log.d("Exception", "Failed: $e")
             }
         }
 
@@ -599,8 +627,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             socket = null
             socketTimer = null
 
-            playerNameBtn.text = "#${playerId+1}: 空"
-            shadowTextView.text = "#${playerId+1}"
+            playerNameBtn.text = "#${playerId + 1}: 空"
+            shadowTextView.text = "#${playerId + 1}"
 
             if (value != null && field != value) {
                 // 新的id则弹幕清屏
@@ -625,9 +653,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             }
 
             // 到这了就表示不为空了，开始加载
-            playerNameBtn.text = "#${playerId+1}: 加载中"
-            
-            __headers.set("referer","https://live.bilibili.com/${value}")
+            playerNameBtn.text = "#${playerId + 1}: 加载中"
+
+            liveHeaders["referer"] = "https://live.bilibili.com/${value}"
             OkHttpClient().newCall(
                 Request.Builder()
                     .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${value}")
@@ -670,10 +698,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
             // 加载基础信息
             OkHttpClient().newCall(
-                    Request.Builder()
-                            .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$value")
-                            .headers(headers)
-                            .build()
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$value")
+                    .headers(headers)
+                    .build()
             ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.d("Exception", "Request failed: $e")
@@ -690,10 +718,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             val data = jo.getJSONObject("data")
                             val roomInfo = data.getJSONObject("room_info")
                             val anchorInfo =
-                                    data.getJSONObject("anchor_info").getJSONObject("base_info")
+                                data.getJSONObject("anchor_info").getJSONObject("base_info")
 
                             val liveStatus =
-                                    if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
+                                if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
                             val uname = anchorInfo.getString("uname")
                             val face = anchorInfo.getString("face").replace("http://", "https://")
 //                            Log.d("shadowFaceImg", shadowFaceImg)
@@ -702,14 +730,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 shadowTextView.text = "#${playerId + 1}"
                                 try {
                                     Picasso.get().load(face).transform(RoundImageTransform())
-                                            .into(shadowFaceImg)
+                                        .into(shadowFaceImg)
                                 } catch (e: Exception) {
                                     shadowFaceImg.setImageDrawable(null)
                                 }
 
                             }
                         } catch (e: Exception) {
-
+                            Log.d("Exception", "Request failed: $e")
                         }
 
                     }
@@ -717,15 +745,16 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
             })
 
-            startTime = SimpleDateFormat("yyyyMMddHHmmss").format(Date())
+            startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
+
             recordingDurationLong = 0L
 
             // 加载视频流信息
             OkHttpClient().newCall(
-                    Request.Builder()
-                            .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$value&qn=$qn&platform=h5")
-                            .headers(headers)
-                            .build()
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$value&qn=$qn&platform=h5")
+                    .headers(headers)
+                    .build()
             ).enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
                     Log.d("Exception", "Request failed: $e")
@@ -745,7 +774,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 .getJSONObject(0)
                                 .getString("url")
                         } catch (e: Exception) {
-
+                            Log.d("Exception", "Request failed: $e")
                         }
                         if (url.isEmpty()) return
 
@@ -804,13 +833,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                                     handler.post {
                                                         recordingDurationLong += 1
 //                                                        recordingDuration.text = ByteUtils.minuteString(recordingDurationLong)
-                                                        recordingSize.text = RecordingUtils.byteString(total)
+                                                        recordingSize.text =
+                                                            RecordingUtils.byteString(total)
                                                     }
 
                                                 }
                                             }, 1000, 1000)
-                                        }
-                                        else {
+                                        } else {
                                             Handler(Looper.getMainLooper()).post {
 //                                                if (isRecording) {
 //                                                    isRecording = false
@@ -829,7 +858,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                             OkHttpClient().newCall(
                                 Request.Builder()
-                                    .headers(__headers.build())
+                                    .headers(liveHeaders.build())
                                     .url(url)
                                     .build()
                             ).enqueue(object : Callback {
@@ -882,7 +911,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                         handler.post {
                                             player?.stop()
                                             roomId = this@DDPlayer.roomId
-                                            Toast.makeText(context, "录像已保存${cacheFile.path}", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                "录像已保存${cacheFile.path}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                         outputStream.close()
 
@@ -912,18 +945,19 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             connectDanmu()
         }
 
-    private fun checkAndToastCellular() {
+    fun checkAndToastCellular() {
         try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
             cm?.run {
                 cm.getNetworkCapabilities(cm.activeNetwork)?.run {
                     if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
                         Log.d("checkAndToastCellular", "cellular")
-                        Toast.makeText(context, "正在使用流量数据，请注意消耗", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "正在使用流量数据，请注意消耗", Toast.LENGTH_SHORT)
+                            .show()
                     }
                 }
             }
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
 
@@ -934,69 +968,70 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     fun connectDanmu() {
         socket = OkHttpClient.Builder().build().newWebSocket(
             Request.Builder()
-            .url("wss://${host}:2245/sub")
-            .headers(__headers.build())
-            .build(), object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                super.onOpen(webSocket, response)
-                Log.d("danmu", "open")
+                .url("wss://${host}:2245/sub")
+                .headers(liveHeaders.build())
+                .build(), object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    super.onOpen(webSocket, response)
+                    Log.d("danmu", "open")
 
-                // 连接成功，发送加入直播间的请求
+                    // 连接成功，发送加入直播间的请求
 //                val req = "{\"roomid\":$roomId}"
-                fun encode(op: Int, msg: String): ByteArray {
-                    val body = msg.toByteArray(Charsets.UTF_8)
-                    val headerLength = 16
-                    val packetLength = headerLength + body.size
-                    val ver = 1
-                    val seq = 1
+                    fun encode(op: Int, msg: String): ByteArray {
+                        val body = msg.toByteArray(Charsets.UTF_8)
+                        val headerLength = 16
+                        val packetLength = headerLength + body.size
+                        val ver = 1
+                        val seq = 1
 
-                    val buffer = ByteBuffer.allocate(packetLength)
-                        .putInt(packetLength) // Packet length
-                        .putShort(headerLength.toShort()) // Header length
-                        .putShort(ver.toShort()) // Protocol version
-                        .putInt(op) // Operation
-                        .putInt(seq) // Sequence ID
+                        val buffer = ByteBuffer.allocate(packetLength)
+                            .putInt(packetLength) // Packet length
+                            .putShort(headerLength.toShort()) // Header length
+                            .putShort(ver.toShort()) // Protocol version
+                            .putInt(op) // Operation
+                            .putInt(seq) // Sequence ID
 
-                    return buffer.put(body).array()
-                }
-                val reqJson = JSONObject()
-                reqJson.put("roomid", roomId!!.toInt())
-                reqJson.put("protover", 3)
-                reqJson.put("uid",0)
-                reqJson.put("platform","web")
-                reqJson.put("type",2)
-                reqJson.put("key", token)
+                        return buffer.put(body).array()
+                    }
 
-                val req = reqJson.toString()
-                Log.d("danmu", "req $req")
+                    val reqJson = JSONObject()
+                    reqJson.put("roomid", roomId!!.toInt())
+                    reqJson.put("protover", 3)
+                    reqJson.put("uid", 0)
+                    reqJson.put("platform", "web")
+                    reqJson.put("type", 2)
+                    reqJson.put("key", token)
 
-                val payload = encode(7, req)
+                    val req = reqJson.toString()
+                    Log.d("danmu", "req $req")
 
-                socket?.send(payload.toByteString())
+                    val payload = encode(7, req)
 
-                // 开始心跳包发送
-                socketTimer = Timer()
-                socketTimer!!.schedule(object : TimerTask() {
-                    override fun run() {
-                        Log.d("danmu", "heartbeat")
+                    socket?.send(payload.toByteString())
+
+                    // 开始心跳包发送
+                    socketTimer = Timer()
+                    socketTimer!!.schedule(object : TimerTask() {
+                        override fun run() {
+                            Log.d("danmu", "heartbeat")
 //                        val obj = "[object Object]"
-                        val heartbeat = encode(2, "")
+                            val heartbeat = encode(2, "")
 //                        byteArray.addAll(obj.toByteArray().toList())
 //                        socket?.send(
 //                            byteArray.toByteArray().toByteString()
 //                        )
-                        socket?.send(heartbeat.toByteString())
-                    }
+                            socket?.send(heartbeat.toByteString())
+                        }
 
-                }, 0, 30000)
-            }
+                    }, 0, 30000)
+                }
 
-            override fun onMessage(
-                webSocket: WebSocket,
-                bytes: ByteString
-            ) {
-                super.onMessage(webSocket, bytes)
-                val byteArray = bytes.toByteArray()
+                override fun onMessage(
+                    webSocket: WebSocket,
+                    bytes: ByteString
+                ) {
+                    super.onMessage(webSocket, bytes)
+                    val byteArray = bytes.toByteArray()
 //                Log.d("danmu", bytes.hex())
                 if (!reconnecting && byteArray[11] == 8.toByte()) {
                     handler.post {
@@ -1011,64 +1046,64 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 reconnecting = false
                 if (byteArray[7] == 3.toByte() || byteArray[7] == 2.toByte()) {
 
-                    // 解压
-                    val bis = ByteArrayInputStream(
-                        byteArray,
-                        16,
-                        byteArray.size - 16
-                    )
-                    var iis:InputStream? = null
-                    if (byteArray[7] == 3.toByte()) {
-                        iis = BrotliInputStream(bis)
-                    }else if (byteArray[7] == 2.toByte()) {
-                        iis = InflaterInputStream(bis)
-                    }
-                    val buf = ByteArray(1024)
+                        // 解压
+                        val bis = ByteArrayInputStream(
+                            byteArray,
+                            16,
+                            byteArray.size - 16
+                        )
+                        var iis: InputStream? = null
+                        if (byteArray[7] == 3.toByte()) {
+                            iis = BrotliInputStream(bis)
+                        } else if (byteArray[7] == 2.toByte()) {
+                            iis = InflaterInputStream(bis)
+                        }
+                        val buf = ByteArray(1024)
 
-                    val bos = ByteArrayOutputStream()
+                        val bos = ByteArrayOutputStream()
 
-                    if (iis == null) return
+                        if (iis == null) return
 
-                    while (true) {
-                        val c = iis.read(buf)
-                        if (c == -1) break
-                        bos.write(buf, 0, c)
-                    }
-                    bos.flush()
-                    iis.close()
+                        while (true) {
+                            val c = iis.read(buf)
+                            if (c == -1) break
+                            bos.write(buf, 0, c)
+                        }
+                        bos.flush()
+                        iis.close()
 
-                    val unzipped = bos.toByteArray()
+                        val unzipped = bos.toByteArray()
 
-                    // 解压后是多条json连在一条字符串里，可根据每一条json前面16个字节的头，获取到每条json的长度
-                    var len = 0
-                    try {
-                        while (len < unzipped.size) {
-                            var b2 = unzipped[len + 2].toInt()
-                            if (b2 < 0) b2 += 256
-                            var b3 = unzipped[len + 3].toInt()
-                            if (b3 < 0) b3 += 256
+                        // 解压后是多条json连在一条字符串里，可根据每一条json前面16个字节的头，获取到每条json的长度
+                        var len = 0
+                        try {
+                            while (len < unzipped.size) {
+                                var b2 = unzipped[len + 2].toInt()
+                                if (b2 < 0) b2 += 256
+                                var b3 = unzipped[len + 3].toInt()
+                                if (b3 < 0) b3 += 256
 
-                            val nextLen = b2 * 256 + b3
+                                val nextLen = b2 * 256 + b3
 //                                Log.d("danmu", "$nextLen = $b2 *256 + $b3 / $len / ${unzipped.size}")
-                            val jstr = String(
-                                unzipped,
-                                len + 16,
-                                nextLen - 16,
-                                Charsets.UTF_8
-                            )
+                                val jstr = String(
+                                    unzipped,
+                                    len + 16,
+                                    nextLen - 16,
+                                    Charsets.UTF_8
+                                )
 //                            Log.d("danmu", jstr)
-                            val jobj = JSONObject(jstr)
-                            val cmd = jobj.getString("cmd")
-                            if (cmd.startsWith("DANMU_MSG")) {
-                                var emojiUrl:String? = null
-                                try {
-                                    emojiUrl = jobj.getJSONArray("info")
-                                        .getJSONArray(0).getJSONObject(13)
-                                        .getString("url")
-                                }catch (e0: Exception) {
+                                val jobj = JSONObject(jstr)
+                                val cmd = jobj.getString("cmd")
+                                if (cmd.startsWith("DANMU_MSG")) {
+                                    var emojiUrl: String? = null
+                                    try {
+                                        emojiUrl = jobj.getJSONArray("info")
+                                            .getJSONArray(0).getJSONObject(13)
+                                            .getString("url")
+                                    } catch (e0: Exception) {
 //                                    e0.printStackTrace()
-                                }
-                                val danmu = jobj.getJSONArray("info").getString(1)
+                                    }
+                                    val danmu = jobj.getJSONArray("info").getString(1)
 
 //                                Log.d("danmu", "$roomId $danmu")
                                 handler.post {
@@ -1080,143 +1115,156 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                     danmuListViewAdapter.notifyDataSetInvalidated()
                                     danmuListView.setSelection(danmuListView.bottom)
 
-                                    // 过滤同传弹幕
-                                    if (danmu.contains("【")
-                                        || danmu.contains("[")
-                                        || danmu.contains("{")
-                                    ) {
-                                        if (interpreterList.count() > 20) {
-                                            interpreterList.removeFirst()
+                                        // 过滤同传弹幕
+                                        if (danmu.contains("【")
+                                            || danmu.contains("[")
+                                            || danmu.contains("{")
+                                        ) {
+                                            if (interpreterList.count() > 20) {
+                                                interpreterList.removeAt(0)
+                                            }
+                                            interpreterList.add(danmu)
+                                            interpreterViewAdapter.notifyDataSetInvalidated()
+                                            interpreterListView.setSelection(interpreterListView.bottom)
                                         }
-                                        interpreterList.add(danmu)
+                                    }
+                                    if (isRecording) {
+                                        try {
+                                            val dir =
+                                                File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                            if (!dir.exists()) dir.mkdirs()
+
+                                            val cacheFile = File(dir, "$startTime-danmu.txt")
+                                            val writer = FileWriter(cacheFile, true)
+                                            writer.write(
+                                                "${
+                                                    RecordingUtils.minuteString(
+                                                        recordingDurationLong
+                                                    )
+                                                } $danmu\n"
+                                            )
+                                            writer.close()
+                                        } catch (e: Exception) {
+                                            Log.d("Exception", "Failed: $e")
+                                        }
+                                    }
+                                } else if (cmd.startsWith("SUPER_CHAT_MESSAGE")) {
+                                    Log.d("SC", jobj.toString())
+                                    val danmu = jobj.getJSONObject("data").getString("message")
+                                    handler.post {
+                                        if (danmuList.count() > 20) {
+                                            danmuList.removeAt(0)
+                                        }
+                                        danmuList.add(Pair("[SC] $danmu", null))
+                                        danmuListViewAdapter.notifyDataSetInvalidated()
+                                        danmuListView.setSelection(danmuListView.bottom)
+
+                                        if (interpreterList.count() > 20) {
+                                            interpreterList.removeAt(0)
+                                        }
+                                        interpreterList.add("[SC] $danmu")
                                         interpreterViewAdapter.notifyDataSetInvalidated()
                                         interpreterListView.setSelection(interpreterListView.bottom)
                                     }
-                                }
-                                if (isRecording) {
-                                    try {
-                                        val dir =
-                                            File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
-                                        if (!dir.exists()) dir.mkdirs()
+                                    if (isRecording) {
+                                        try {
+                                            val dir =
+                                                File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                            if (!dir.exists()) dir.mkdirs()
 
-                                        val cacheFile = File(dir, "$startTime-danmu.txt")
-                                        val writer = FileWriter(cacheFile, true)
-                                        writer.write("${RecordingUtils.minuteString(recordingDurationLong)} $danmu\n")
-                                        writer.close()
-                                    }catch (e: Exception) {
-
+                                            val cacheFile = File(dir, "$startTime-danmu.txt")
+                                            val writer = FileWriter(cacheFile, true)
+                                            writer.write(
+                                                "${
+                                                    RecordingUtils.minuteString(
+                                                        recordingDurationLong
+                                                    )
+                                                } [SC] $danmu\n"
+                                            )
+                                            writer.close()
+                                        } catch (e: Exception) {
+                                            Log.d("Exception", "Failed: $e")
+                                        }
                                     }
                                 }
-                            } else if (cmd.startsWith("SUPER_CHAT_MESSAGE")) {
-                                Log.d("SC", jobj.toString())
-                                val danmu = jobj.getJSONObject("data").getString("message")
-                                handler.post {
-                                    if (danmuList.count() > 20) {
-                                        danmuList.removeFirst()
-                                    }
-                                    danmuList.add(Pair("[SC] $danmu",null))
-                                    danmuListViewAdapter.notifyDataSetInvalidated()
-                                    danmuListView.setSelection(danmuListView.bottom)
 
-                                    if (interpreterList.count() > 20) {
-                                        interpreterList.removeFirst()
-                                    }
-                                    interpreterList.add("[SC] $danmu")
-                                    interpreterViewAdapter.notifyDataSetInvalidated()
-                                    interpreterListView.setSelection(interpreterListView.bottom)
-                                }
-                                if (isRecording) {
-                                    try {
-                                        val dir =
-                                            File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
-                                        if (!dir.exists()) dir.mkdirs()
-
-                                        val cacheFile = File(dir, "$startTime-danmu.txt")
-                                        val writer = FileWriter(cacheFile, true)
-                                        writer.write("${RecordingUtils.minuteString(recordingDurationLong)} [SC] $danmu\n")
-                                        writer.close()
-                                    }catch (e: Exception) {
-
-                                    }
-                                }
+                                len += nextLen
                             }
-
-                            len += nextLen
-                        }
-                    } catch (e: Exception) {
+                        } catch (e: Exception) {
 //                            Log.d("danmu", e.toString() + " " + e.message)
 //                            e.printStackTrace()
+                        }
+
                     }
 
                 }
 
-            }
-
-            override fun onFailure(
-                webSocket: WebSocket,
-                t: Throwable,
-                response: Response?
-            ) {
-                super.onFailure(webSocket, t, response)
-                Log.d("danmu", "$roomId fail ${t.message}")
-                t.printStackTrace()
+                override fun onFailure(
+                    webSocket: WebSocket,
+                    t: Throwable,
+                    response: Response?
+                ) {
+                    super.onFailure(webSocket, t, response)
+                    Log.d("danmu", "$roomId fail ${t.message}")
+                    t.printStackTrace()
 //                socket?.cancel()
 //                socket?.close(4999, "failure")
 //                reconnecting = true
 //                connectDanmu()
 
-                handler.post {
-                    if (danmuList.count() > 20) {
-                        danmuList.removeFirst()
-                    }
-                    danmuList.add(Pair("[系统] 弹幕可能已断开，请刷新",null))
-                    danmuListViewAdapter.notifyDataSetInvalidated()
-                    danmuListView.setSelection(danmuListView.bottom)
+                    handler.post {
+                        if (danmuList.count() > 20) {
+                            danmuList.removeAt(0)
+                        }
+                        danmuList.add(Pair("[系统] 弹幕可能已断开，请刷新", null))
+                        danmuListViewAdapter.notifyDataSetInvalidated()
+                        danmuListView.setSelection(danmuListView.bottom)
 
-                    if (interpreterList.count() > 20) {
-                        interpreterList.removeFirst()
+                        if (interpreterList.count() > 20) {
+                            interpreterList.removeAt(0)
+                        }
+                        interpreterList.add("[系统] 弹幕可能已断开，请刷新")
+                        interpreterViewAdapter.notifyDataSetInvalidated()
+                        interpreterListView.setSelection(interpreterListView.bottom)
                     }
-                    interpreterList.add("[系统] 弹幕可能已断开，请刷新")
-                    interpreterViewAdapter.notifyDataSetInvalidated()
-                    interpreterListView.setSelection(interpreterListView.bottom)
                 }
-            }
 
-            override fun onClosing(
-                webSocket: WebSocket,
-                code: Int,
-                reason: String
-            ) {
-                super.onClosing(webSocket, code, reason)
-                Log.d("danmu", "closing")
+                override fun onClosing(
+                    webSocket: WebSocket,
+                    code: Int,
+                    reason: String
+                ) {
+                    super.onClosing(webSocket, code, reason)
+                    Log.d("danmu", "closing")
 
-            }
+                }
 
-            override fun onClosed(
-                webSocket: WebSocket,
-                code: Int,
-                reason: String
-            ) {
-                super.onClosed(webSocket, code, reason)
-                Log.d("danmu", "close")
-//                handler.post {
+                override fun onClosed(
+                    webSocket: WebSocket,
+                    code: Int,
+                    reason: String
+                ) {
+                    super.onClosed(webSocket, code, reason)
+                    Log.d("danmu", "close")
+//                __handler.post {
 //                    if (danmuList.count() > 20) {
-//                        danmuList.removeFirst()
+//                        danmuList.removeAt(0)
 //                    }
 //                    danmuList.add("[系统] 弹幕已断开，请刷新")
 //                    danmuListViewAdapter.notifyDataSetInvalidated()
 //                    danmuListView.setSelection(danmuListView.bottom)
 //
 //                    if (interpreterList.count() > 20) {
-//                        interpreterList.removeFirst()
+//                        interpreterList.removeAt(0)
 //                    }
 //                    interpreterList.add("[系统] 弹幕已断开，请刷新")
 //                    interpreterViewAdapter.notifyDataSetInvalidated()
 //                    interpreterListView.setSelection(interpreterListView.bottom)
 //                }
-            }
-        })
+                }
+            })
     }
+
     // 宽高变化时调用，调整工具条，使得按钮隐藏，不超出宽度
     fun adjustControlBar() {
         Log.d("ddplayer", "width $width ${context.resources.displayMetrics.density}")
@@ -1226,7 +1274,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             danmuBtn.visibility = GONE
             qnBtn.visibility = GONE
             isHiddenBarBtns = true
-        }else{
+        } else {
             refreshBtn.visibility = VISIBLE
             volumeBtn.visibility = VISIBLE
             danmuBtn.visibility = VISIBLE
@@ -1257,15 +1305,18 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //        app:layout_constraintVertical_bias="0"
 //        app:layout_constraintWidth_percent=".2"
         val layoutParams = danmuView.layoutParams as LayoutParams
-        layoutParams.horizontalBias = if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 0f else 1f
-        layoutParams.verticalBias = if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 2) 0f else 1f
+        layoutParams.horizontalBias =
+            if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 0f else 1f
+        layoutParams.verticalBias =
+            if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 2) 0f else 1f
         layoutParams.matchConstraintPercentWidth = playerOptions.danmuWidth
         layoutParams.matchConstraintPercentHeight = playerOptions.danmuHeight
 
         danmuView.layoutParams = layoutParams
 
         val recordingViewLayoutParams = recordingView.layoutParams as LayoutParams
-        recordingViewLayoutParams.horizontalBias = if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 1f else 0f
+        recordingViewLayoutParams.horizontalBias =
+            if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 1f else 0f
         recordingView.layoutParams = recordingViewLayoutParams
 
         val jstr = Gson().toJson(playerOptions)
