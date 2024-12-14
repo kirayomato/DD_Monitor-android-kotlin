@@ -626,9 +626,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         interpreterListView.setSelection(interpreterListView.bottom)
     }
 
+    var liveStatus = "(未开播)"
+
     /**
      * roomId setter 设置后立即开始加载播放
      */
+
     var roomId: String? = null
         set(value) {
             // 初始化播放器相关、弹幕socket相关的对象
@@ -734,8 +737,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             val anchorInfo =
                                     data.getJSONObject("anchor_info").getJSONObject("base_info")
 
-                            val liveStatus =
-                                    if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
+                            liveStatus = if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
                             val uname = anchorInfo.getString("uname")
                             val face = anchorInfo.getString("face").replace("http://", "https://")
 //                            Log.d("shadowFaceImg", shadowFaceImg)
@@ -755,47 +757,55 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         catch (e: Exception) {
                             Log.d("Exception", "Request failed: $e")
                         }
-
                     }
                 }
-
             })
 
-            startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
+            // 加载视频
+            connectVideo()
+            // 连接弹幕socket
+            connectDanmu()
+        }
 
-            recordingDurationLong = 0L
 
-            // 加载视频流信息
-            OkHttpClient().newCall(
-                    Request.Builder()
-                        .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$value&qn=$qn&platform=h5")
-                        .headers(headers).build()
-                                  ).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.d("Exception", "Request failed: $e")
+    fun connectVideo() {
+        if (liveStatus.isNotEmpty()) return
+
+        startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
+
+        recordingDurationLong = 0L
+
+        // 加载视频流信息
+        OkHttpClient().newCall(
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$roomId&qn=$qn&platform=h5")
+                    .headers(headers).build()
+                              ).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d("Exception", "Request failed: $e")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    return
                 }
-
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        Log.d("Exception", "Request failed with code: ${response.code}")
-                        return
+                response.body?.let { it2 ->
+                    var url = ""
+                    try {
+                        url = JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
+                            .getJSONObject(0).getString("url")
                     }
-                    response.body?.let { it2 ->
-                        var url = ""
-                        try {
-                            url = JSONObject(it2.string()).getJSONObject("data")
-                                .getJSONArray("durl").getJSONObject(0).getString("url")
-                        }
-                        catch (e: Exception) {
-                            Log.d("Exception", "Request failed: $e")
-                        }
-                        if (url.isEmpty()) return
+                    catch (e: Exception) {
+                        Log.d("Exception", "Request failed: $e")
+                    }
+                    if (url.isEmpty()) return
 
-                        Log.d("proxyurl", url)
+                    Log.d("proxyurl", url)
 
-                        val textureView = TextureView(context)
-                        myHandler.post {
-                            player = ExoPlayer.Builder(context).build()
+                    val textureView = TextureView(context)
+                    myHandler.post {
+                        player = ExoPlayer.Builder(context).build()
 //                            player!!.addListener(object : Player.EventListener{
 //                                override fun onEvents(player: Player, events: Player.Events) {
 //                                    super.onEvents(player, events)
@@ -808,17 +818,17 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                    error.printStackTrace()
 //                                }
 //                            })
-                            player!!.setVideoTextureView(textureView)
+                        player!!.setVideoTextureView(textureView)
 
-                            playerView.player = player
-                            player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
-                            player!!.playWhenReady = true
-                            player!!.prepare()
-                        }
+                        playerView.player = player
+                        player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
+                        player!!.playWhenReady = true
+                        player!!.prepare()
+                    }
 
-                        if (!isRecording) {
-                            myHandler.post {
-                                player!!.setMediaItem(MediaItem.fromUri(url))
+                    if (!isRecording) {
+                        myHandler.post {
+                            player!!.setMediaItem(MediaItem.fromUri(url))
 //                                val factory = DefaultHttpDataSource.Factory()
 //                                factory.setDefaultRequestProperties(mapOf(
 //                                    "User-Agent" to WebView(context).settings.userAgentString,
@@ -827,63 +837,59 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                val mediaSource = ProgressiveMediaSource.Factory(factory)
 //                                    .createMediaSource(MediaItem.fromUri(url))
 //                                player!!.setMediaSource(mediaSource)
-                            }
                         }
-                        else {
-                            Log.d("debug54", "record")
-                            var total: Long = 0
+                    }
+                    else {
+                        Log.d("debug54", "record")
+                        var total: Long = 0
 
-                            myHandler.post {
-                                player?.addListener(object : Player.Listener {
-                                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                                        super.onIsPlayingChanged(isPlaying)
-                                        Log.d("isplaying", isPlaying.toString())
-                                        if (isPlaying) {
-                                            recordingView.visibility = VISIBLE
+                        myHandler.post {
+                            player?.addListener(object : Player.Listener {
+                                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                                    super.onIsPlayingChanged(isPlaying)
+                                    Log.d("isplaying", isPlaying.toString())
+                                    if (isPlaying) {
+                                        recordingView.visibility = VISIBLE
 //                                            recordingDuration.text = "0:00"
-                                            recordingSize.text = RecordingUtils.byteString(total)
-                                            recordingTimer = Timer()
-                                            recordingTimer!!.schedule(object : TimerTask() {
-                                                override fun run() {
-                                                    myHandler.post {
-                                                        recordingDurationLong += 1
+                                        recordingSize.text = RecordingUtils.byteString(total)
+                                        recordingTimer = Timer()
+                                        recordingTimer!!.schedule(object : TimerTask() {
+                                            override fun run() {
+                                                myHandler.post {
+                                                    recordingDurationLong += 1
 //                                                        recordingDuration.text = ByteUtils.minuteString(recordingDurationLong)
-                                                        recordingSize.text =
-                                                                RecordingUtils.byteString(total)
-                                                    }
-
+                                                    recordingSize.text =
+                                                            RecordingUtils.byteString(total)
                                                 }
-                                            }, 1000, 1000)
-                                        }
-                                        else {
-                                            Handler(Looper.getMainLooper()).post {
+
+                                            }
+                                        }, 1000, 1000)
+                                    }
+                                    else {
+                                        Handler(Looper.getMainLooper()).post {
 //                                                if (isRecording) {
 //                                                    isRecording = false
 //                                                    roomId = this@DDPlayer.roomId
 //                                                }
-                                                player?.play()
-                                            }
-
-
+                                            player?.play()
                                         }
-
                                     }
-                                })
+                                }
+                            })
+                        }
+
+
+                        OkHttpClient().newCall(
+                                Request.Builder().headers(liveHeaders.build()).url(url).build()
+                                              ).enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                Log.d("debug54", "response onFailure")
+                                e.printStackTrace()
                             }
 
-
-                            OkHttpClient().newCall(
-                                    Request.Builder().headers(liveHeaders.build()).url(url).build()
-                                                  ).enqueue(object : Callback {
-                                override fun onFailure(call: Call, e: IOException) {
-                                    Log.d("debug54", "response onFailure")
-                                    e.printStackTrace()
-                                }
-
-                                override fun onResponse(call: Call, response: Response) {
-                                    Log.d("debug54", "response.code ${response.code}")
-                                    response.header("Content-Type", "")
-                                        ?.let { Log.d("debug54", it) }
+                            override fun onResponse(call: Call, response: Response) {
+                                Log.d("debug54", "response.code ${response.code}")
+                                response.header("Content-Type", "")?.let { Log.d("debug54", it) }
 //                                    if (response.code != 475) {
 //                                        __handler.post {
 //                                            isRecording = false
@@ -891,100 +897,78 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                        }
 //                                        return
 //                                    }
-                                    try {
-                                        val byteStream = response.body!!.byteStream()
-                                        val dir =
-                                                File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$value/")
-                                        if (!dir.exists()) dir.mkdirs()
+                                try {
+                                    val byteStream = response.body!!.byteStream()
+                                    val dir =
+                                            File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                    if (!dir.exists()) dir.mkdirs()
 
-                                        val cacheFile = File(dir, "$startTime.flv")
-                                        val outputStream = FileOutputStream(cacheFile)
+                                    val cacheFile = File(dir, "$startTime.flv")
+                                    val outputStream = FileOutputStream(cacheFile)
 
-                                        var len: Int
-                                        var loaded = false
+                                    var len: Int
+                                    var loaded = false
 
-                                        val buf = ByteArray(1024 * 1024)
-                                        while (true) {
-                                            len = byteStream.read(buf)
-                                            if (len == -1) break
+                                    val buf = ByteArray(1024 * 1024)
+                                    while (true) {
+                                        len = byteStream.read(buf)
+                                        if (len == -1) break
 
-                                            total += len
-                                            outputStream.write(buf, 0, len)
-                                            outputStream.flush()
+                                        total += len
+                                        outputStream.write(buf, 0, len)
+                                        outputStream.flush()
 
-                                            if (!loaded) {
-                                                loaded = true
-                                                myHandler.post {
-                                                    player!!.setMediaItem(
-                                                            MediaItem.fromUri(
-                                                                    cacheFile.toUri()
-                                                                             )
+                                        if (!loaded) {
+                                            loaded = true
+                                            myHandler.post {
+                                                player!!.setMediaItem(
+                                                        MediaItem.fromUri(
+                                                                cacheFile.toUri()
                                                                          )
-                                                }
+                                                                     )
                                             }
-
-                                            if (!isRecording) break
                                         }
+
+                                        if (!isRecording) break
+                                    }
+                                    myHandler.post {
+                                        player?.stop()
+                                        roomId = this@DDPlayer.roomId
+                                        Toast.makeText(
+                                                context,
+                                                "录像已保存${cacheFile.path}",
+                                                Toast.LENGTH_SHORT
+                                                      ).show()
+                                    }
+                                    outputStream.close()
+
+                                }
+                                catch (e: Exception) {
+                                    e.printStackTrace()
+                                    if (isRecording) {
+                                        isRecording = false
                                         myHandler.post {
                                             player?.stop()
                                             roomId = this@DDPlayer.roomId
-                                            Toast.makeText(
-                                                    context,
-                                                    "录像已保存${cacheFile.path}",
-                                                    Toast.LENGTH_SHORT
-                                                          ).show()
-                                        }
-                                        outputStream.close()
-
-                                    }
-                                    catch (e: Exception) {
-                                        e.printStackTrace()
-                                        if (isRecording) {
-                                            isRecording = false
-                                            myHandler.post {
-                                                player?.stop()
-                                                roomId = this@DDPlayer.roomId
-                                            }
                                         }
                                     }
                                 }
+                            }
 
-                            })
-
-                        }
-
+                        })
 
                     }
-                }
 
-            })
 
-            // 连接弹幕socket
-            connectDanmu()
-        }
-
-    fun checkAndToastCellular() {
-        try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
-            cm?.run {
-                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
-                    if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                        Log.d("checkAndToastCellular", "cellular")
-                        Toast.makeText(context, "正在使用流量数据，请注意消耗", Toast.LENGTH_SHORT)
-                            .show()
-                    }
                 }
             }
-        }
-        catch (e: Exception) {
-            e.printStackTrace()
-        }
 
+        })
     }
-
 
     var reconnecting = false
     fun connectDanmu() {
+        if (liveStatus.isNotEmpty()) return
         socket = OkHttpClient.Builder().build()
             .newWebSocket(Request.Builder().url("wss://${host}:2245/sub")
                               .headers(liveHeaders.build()).build(), object : WebSocketListener() {
@@ -1228,6 +1212,25 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                }
                 }
             })
+    }
+
+    fun checkAndToastCellular() {
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
+            cm?.run {
+                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
+                    if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                        Log.d("checkAndToastCellular", "cellular")
+                        Toast.makeText(context, "正在使用流量数据，请注意消耗", Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
+            }
+        }
+        catch (e: Exception) {
+            e.printStackTrace()
+        }
+
     }
 
     // 宽高变化时调用，调整工具条，使得按钮隐藏，不超出宽度
