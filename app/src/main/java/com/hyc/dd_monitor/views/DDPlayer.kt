@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.DragEvent
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
@@ -792,6 +793,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                         Log.d("proxyurl", url)
 
+                        val textureView = TextureView(context)
                         myHandler.post {
                             player = ExoPlayer.Builder(context).build()
 //                            player!!.addListener(object : Player.EventListener{
@@ -806,6 +808,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                    error.printStackTrace()
 //                                }
 //                            })
+                            player!!.setVideoTextureView(textureView)
 
                             playerView.player = player
                             player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
