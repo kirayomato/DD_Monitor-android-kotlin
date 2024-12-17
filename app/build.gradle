@@ -23,11 +23,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_18
-        targetCompatibility JavaVersion.VERSION_18
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = '18'
+        jvmTarget = '21'
     }
 }
 
@@ -44,10 +44,10 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.5.0")
     implementation("androidx.media3:media3-exoplayer-dash:1.5.0")
     implementation("androidx.media3:media3-ui:1.5.0")
-    implementation 'com.squareup.picasso:picasso:2.71828'
+    implementation 'com.squareup.picasso:picasso:2.8'
 //    implementation 'com.h6ah4i.android.widget.verticalseekbar:verticalseekbar:1.0.0'
     implementation "com.google.code.gson:gson:2.10.1"
-    implementation 'com.journeyapps:zxing-android-embedded:3.6.0'
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     implementation("org.brotli:dec:0.1.2")
 
     testImplementation 'junit:junit:4.13.2'
