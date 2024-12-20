@@ -1,5 +1,6 @@
 package com.hyc.dd_monitor
 
+import android.app.Notification
 import android.content.*
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
@@ -10,6 +11,14 @@ import android.text.InputType
 import android.util.Log
 import android.view.*
 import android.view.inputmethod.EditorInfo
+import android.app.Service
+import android.os.Build
+import android.os.IBinder
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Intent
+import android.content.Context
+import androidx.core.app.NotificationCompat
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -34,19 +43,63 @@ import java.util.*
 import java.util.regex.Pattern
 
 var headers = Headers.Builder().add(
-    "accept", "application/json, text/plain, */*"
+        "accept", "application/json, text/plain, */*"
                                    ).add("accept-encoding", "utf-8, deflate, zstd")
     .add("accept-language", "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7").add("cache-control", "no-cache")
     .add("pragma", "no-cache").add("connection", "keep-alive")
     .add("origin", "https://live.bilibili.com").add("referer", "https://live.bilibili.com/27628019")
     .add(
-        "sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+            "sec-ch-ua",
+            "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
         ).add("sec-ch-ua-mobile", "?0").add("sec-ch-ua-platform", "\"Windows\"")
     .add("sec-fetch-dest", "document").add("sec-fetch-mode", "navigate")
     .add("sec-fetch-site", "none").add("sec-fetch-user", "?1").add(
-        "user-agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            "user-agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                                                                   ).build()
+
+class MyForegroundService : Service() {
+
+    private val CHANNEL_ID = "foreground_service_channel"
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 创建通知
+        val notification: Notification =
+                NotificationCompat.Builder(this, CHANNEL_ID).setContentTitle("DD播放器")
+                    .setContentText("运行中").setSmallIcon(R.mipmap.ic_launcher).build()
+
+        // 启动前台服务
+        startForeground(1, notification)
+
+        // 如果服务被系统杀死，返回START_STICKY让服务重新启动
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Foreground Service Channel"
+            val descriptionText = "Channel for foreground service notifications"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+
+            // 注册通知渠道
+            val notificationManager: NotificationManager =
+                    getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+}
 
 class MainActivity : AppCompatActivity() {
 
@@ -124,11 +177,18 @@ class MainActivity : AppCompatActivity() {
 
         // 安卓9/10以上申请存储权限
         ActivityCompat.requestPermissions(
-            this, arrayOf(
+                this, arrayOf(
                 android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 android.Manifest.permission.READ_EXTERNAL_STORAGE
-                         ), 111
+                             ), 111
                                          )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                    this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 222
+                                             )
+        }
+        val serviceIntent = Intent(this, MyForegroundService::class.java)
+        startService(serviceIntent)
 
         drawer = findViewById(R.id.main_drawer)
         drawerContent = findViewById(R.id.drawer_content)
@@ -282,15 +342,15 @@ class MainActivity : AppCompatActivity() {
             Log.d("long click", i.toString())
 
             val clipData = ClipData(
-                "roomId", arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN), ClipData.Item(uplist[i])
+                    "roomId", arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN), ClipData.Item(uplist[i])
                                    )
             clipData.addItem(ClipData.Item(upinfos[uplist[i]]?.faceImageUrl))
 
             view.startDragAndDrop(
-                clipData,
-                View.DragShadowBuilder(view.findViewById(R.id.shadow_view)),
-                null,
-                View.DRAG_FLAG_GLOBAL
+                    clipData,
+                    View.DragShadowBuilder(view.findViewById(R.id.shadow_view)),
+                    null,
+                    View.DRAG_FLAG_GLOBAL
                                  )
 
             drawer.closeDrawers()
@@ -457,14 +517,19 @@ class MainActivity : AppCompatActivity() {
         landScapeBtn.setOnClickListener {
             if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
-                window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                window.insetsController?.apply {
+                    show(WindowInsets.Type.systemBars())
+                }
                 toolbar.visibility = View.VISIBLE
             }
             else {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                window.insetsController?.apply {
+                    hide(WindowInsets.Type.systemBars())
+                }
                 toolbar.visibility = View.GONE
             }
+
         }
 
         // 切换布局按钮
@@ -680,12 +745,14 @@ class MainActivity : AppCompatActivity() {
                     AlertDialog.Builder(this).setTitle("尝试解析解析剪贴板的分享链接？")
                         .setMessage(clip).setPositiveButton("是") { _, _ ->
                             OkHttpClient().newCall(
-                                Request.Builder().url(it).headers(headers).build()
+                                    Request.Builder().url(it).headers(headers).build()
                                                   ).enqueue(object : Callback {
                                 override fun onFailure(call: Call, e: IOException) {
                                     runOnUiThread {
                                         Toast.makeText(
-                                            this@MainActivity, "短链接解析失败", Toast.LENGTH_SHORT
+                                                this@MainActivity,
+                                                "短链接解析失败",
+                                                Toast.LENGTH_SHORT
                                                       ).show()
                                     }
                                 }
@@ -697,9 +764,9 @@ class MainActivity : AppCompatActivity() {
                                         if (uplist.contains(roomId)) {
                                             runOnUiThread {
                                                 Toast.makeText(
-                                                    this@MainActivity,
-                                                    "${roomId}已存在",
-                                                    Toast.LENGTH_SHORT
+                                                        this@MainActivity,
+                                                        "${roomId}已存在",
+                                                        Toast.LENGTH_SHORT
                                                               ).show()
                                             }
                                             return
@@ -708,9 +775,9 @@ class MainActivity : AppCompatActivity() {
                                             runOnUiThread {
                                                 if (uplist.contains(realRoomId)) {
                                                     Toast.makeText(
-                                                        this@MainActivity,
-                                                        "${realRoomId}已存在",
-                                                        Toast.LENGTH_SHORT
+                                                            this@MainActivity,
+                                                            "${realRoomId}已存在",
+                                                            Toast.LENGTH_SHORT
                                                                   ).show()
                                                     return@runOnUiThread
                                                 }
@@ -718,7 +785,7 @@ class MainActivity : AppCompatActivity() {
                                                 uplist.add(0, realRoomId)
                                                 getSharedPreferences("sp", MODE_PRIVATE).edit {
                                                     this.putString(
-                                                        "uplist", uplist.joinToString(" ")
+                                                            "uplist", uplist.joinToString(" ")
                                                                   ).apply()
                                                 }
 //                                                    uplistview.invalidateViews()
@@ -735,9 +802,9 @@ class MainActivity : AppCompatActivity() {
                                         e.printStackTrace()
                                         runOnUiThread {
                                             Toast.makeText(
-                                                this@MainActivity,
-                                                "短链接解析失败",
-                                                Toast.LENGTH_SHORT
+                                                    this@MainActivity,
+                                                    "短链接解析失败",
+                                                    Toast.LENGTH_SHORT
                                                           ).show()
                                         }
                                     }
@@ -759,9 +826,9 @@ class MainActivity : AppCompatActivity() {
     // 读取单个直播间信息 不可并发、不可频繁请求
     fun loadUpInfo(roomId: String, finished: ((realRoomId: String) -> Unit)? = null) {
         OkHttpClient().newCall(
-            Request.Builder()
-                .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId")
-                .headers(headers).build()
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$roomId")
+                    .headers(headers).build()
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
@@ -775,7 +842,7 @@ class MainActivity : AppCompatActivity() {
                         val data = jo.getJSONObject("data")
                         val roomInfo = data.getJSONObject("room_info")
                         val anchorInfo =
-                            data.getJSONObject("anchor_info").getJSONObject("base_info")
+                                data.getJSONObject("anchor_info").getJSONObject("base_info")
 
                         val realRoomId = roomInfo.getInt("room_id").toString()
 
@@ -813,7 +880,7 @@ class MainActivity : AppCompatActivity() {
                         Log.d("Exception", e.toString())
                         runOnUiThread {
                             Toast.makeText(
-                                this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT
+                                    this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT
                                           ).show()
                         }
                     }
@@ -831,8 +898,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("loadinfo", postdata)
         val body = postdata.toRequestBody("application/json; charset=utf-8".toMediaType())
         OkHttpClient().newCall(
-            Request.Builder().url("https://api.live.bilibili.com/room/v2/Room/get_by_ids")
-                .method("POST", body).headers(headers).build()
+                Request.Builder().url("https://api.live.bilibili.com/room/v2/Room/get_by_ids")
+                    .method("POST", body).headers(headers).build()
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
@@ -858,9 +925,9 @@ class MainActivity : AppCompatActivity() {
                         val body1 = Gson().toJson(mapOf(Pair("uids", uids)))
                             .toRequestBody("application/json; charset=utf-8".toMediaType())
                         OkHttpClient().newCall(
-                            Request.Builder()
-                                .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
-                                .method("POST", body1).headers(headers).build()
+                                Request.Builder()
+                                    .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
+                                    .method("POST", body1).headers(headers).build()
                                               ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
 
@@ -901,7 +968,7 @@ class MainActivity : AppCompatActivity() {
                                                 var keyframe = data.getString("keyframe")
                                                 if (keyframe.startsWith("http://")) {
                                                     keyframe =
-                                                        keyframe.replace("http://", "https://")
+                                                            keyframe.replace("http://", "https://")
                                                 }
                                                 upInfo.coverImageUrl = keyframe
 
@@ -928,15 +995,15 @@ class MainActivity : AppCompatActivity() {
 //                                                            Toast.LENGTH_LONG
 //                                                    ).show()
                                                     Snackbar.make(
-                                                        window.decorView,
-                                                        "${reportLiveStartingList.joinToString(", ")} 开播了",
-                                                        Snackbar.LENGTH_LONG
+                                                            window.decorView,
+                                                            "${reportLiveStartingList.joinToString(", ")} 开播了",
+                                                            Snackbar.LENGTH_LONG
                                                                  ).setAction("关闭") {}.show()
                                                 }
                                                 for (i in 0 until ddLayout.layoutPlayerCount) {
                                                     val p = ddLayout.players[i]
                                                     if (p.roomId != null && reportLiveStartingList.contains(
-                                                            p.roomId
+                                                                    p.roomId
                                                                                                            )
                                                     ) {
                                                         p.roomId = p.roomId

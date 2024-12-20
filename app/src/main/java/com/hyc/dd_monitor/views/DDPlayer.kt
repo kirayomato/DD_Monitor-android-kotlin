@@ -28,10 +28,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.SimpleExoPlayer
-import com.google.android.exoplayer2.ui.PlayerView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.google.gson.Gson
 import com.hyc.dd_monitor.R
 import com.hyc.dd_monitor.headers
@@ -70,6 +71,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
 
     val liveHeaders = headers.newBuilder()
+    val myHandler = Handler(Looper.getMainLooper())
     var host = "broadcastlv.chat.bilibili.com"
     var token = ""
 
@@ -164,11 +166,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var volumeChangedListener: SeekBar.OnSeekBarChangeListener
 
     init {
-        liveHeaders.set("connection", "Upgrade")
-        liveHeaders.set("accept-encoding", "gzip, deflate, br, zstd")
+        liveHeaders["connection"] = "Upgrade"
+        liveHeaders["accept-encoding"] = "gzip, deflate, br, zstd"
 
         layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
                                              )
 
         View.inflate(context, R.layout.dd_player, this)
@@ -402,11 +404,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             showControlBar()
 
             startDragAndDrop(
-                ClipData(
-                    "layoutId",
-                    arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
-                    ClipData.Item(this@DDPlayer.playerId.toString())
-                        ), DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
+                    ClipData(
+                            "layoutId",
+                            arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
+                            ClipData.Item(this@DDPlayer.playerId.toString())
+                            ), DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
                             )
             return@setOnLongClickListener true
         }
@@ -607,7 +609,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         dialog.show()
     }
 
-    var player: SimpleExoPlayer? = null
+    var player: ExoPlayer? = null
 
     var socket: WebSocket? = null
     var socketTimer: Timer? = null
@@ -615,23 +617,23 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var startTime = ""
     var recordingDurationLong = 0L
 
+    fun addMsg(msg: String) {
+        danmuList.add(Pair(msg, null))
+        danmuListViewAdapter.notifyDataSetInvalidated()
+        danmuListView.setSelection(danmuListView.bottom)
+        interpreterList.add(msg)
+        interpreterViewAdapter.notifyDataSetInvalidated()
+        interpreterListView.setSelection(interpreterListView.bottom)
+    }
+
+
     /**
      * roomId setter 设置后立即开始加载播放
      */
     var roomId: String? = null
         set(value) {
             // 初始化播放器相关、弹幕socket相关的对象
-            playerView.player = null
-            player?.stop()
-            player?.release()
-            socketTimer?.cancel()
-            socket?.close(1000, null)
-
-            shadowFaceImg.setImageDrawable(null)
-
-            player = null
-            socket = null
-            socketTimer = null
+            initPlayer()
 
             playerNameBtn.text = "#${playerId + 1}: 空"
             shadowTextView.text = "#${playerId + 1}"
@@ -662,129 +664,155 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             playerNameBtn.text = "#${playerId + 1}: 加载中"
 
             liveHeaders["referer"] = "https://live.bilibili.com/${value}"
-            OkHttpClient().newCall(
-                Request.Builder()
-                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${value}")
-                    .headers(headers).build()
-                                  ).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.d("Exception", "Request failed: $e")
-                }
 
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        Log.d("Exception", "Request failed with code: ${response.code}")
-                        return
-                    }
-
-                    response.body?.let {
-                        try {
-                            val bodyString = it.string()
-                            Log.d("loadinfo", bodyString)
-
-                            val jo = JSONObject(bodyString)
-                            val data = jo.getJSONObject("data")
-                            token = data.getString("token")
-                            host = data.getJSONArray("host_list").getJSONObject(0).getString("host")
-
-                            Log.d("Updated Token", token)
-                            Log.d("Updated Host", host)
-                        }
-                        catch (e: Exception) {
-                            Log.d("Exception", "Parsing error: $e")
-                        }
-                    } ?: run {
-                        Log.d("Exception", "Response body is null")
-                    }
-                }
-            })
             checkAndToastCellular()
 
             // 加载基础信息
-            OkHttpClient().newCall(
-                Request.Builder()
-                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$value")
-                    .headers(headers).build()
-                                  ).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.d("Exception", "Request failed: $e")
-                }
+            getBasicinfo()
+        }
 
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        Log.d("Exception", "Request failed with code: ${response.code}")
-                        return
-                    }
-                    response.body?.let {
-                        try {
-                            val jo = JSONObject(it.string())
-                            val data = jo.getJSONObject("data")
-                            val roomInfo = data.getJSONObject("room_info")
-                            val anchorInfo =
+    fun initPlayer() {
+        playerView.player = null
+        player?.stop()
+        player?.release()
+        socketTimer?.cancel()
+        socket?.close(1000, null)
+
+        shadowFaceImg.setImageDrawable(null)
+
+        player = null
+        socket = null
+        socketTimer = null
+    }
+
+    private fun getBasicinfo() {
+        OkHttpClient().newCall(
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=${roomId}")
+                    .headers(headers).build()
+                              ).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d("Exception", "Request failed: $e")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    return
+                }
+                response.body?.let {
+                    try {
+                        val jo = JSONObject(it.string())
+                        val data = jo.getJSONObject("data")
+                        val roomInfo = data.getJSONObject("room_info")
+                        val anchorInfo =
                                 data.getJSONObject("anchor_info").getJSONObject("base_info")
 
-                            val liveStatus =
-                                if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
-                            val uname = anchorInfo.getString("uname")
-                            val face = anchorInfo.getString("face").replace("http://", "https://")
+                        val liveStatus = if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
+                        val uname = anchorInfo.getString("uname")
+                        val face = anchorInfo.getString("face").replace("http://", "https://")
 //                            Log.d("shadowFaceImg", shadowFaceImg)
-                            handler.post {
-                                playerNameBtn.text = "#${playerId + 1}: $liveStatus$uname"
-                                shadowTextView.text = "#${playerId + 1}"
-                                try {
-                                    Picasso.get().load(face).transform(RoundImageTransform())
-                                        .into(shadowFaceImg)
-                                }
-                                catch (e: Exception) {
-                                    shadowFaceImg.setImageDrawable(null)
-                                }
-
+                        myHandler.post {
+                            playerNameBtn.text = "#${playerId + 1}: $liveStatus$uname"
+                            shadowTextView.text = "#${playerId + 1}"
+                            try {
+                                Picasso.get().load(face).transform(RoundImageTransform())
+                                    .into(shadowFaceImg)
+                            }
+                            catch (e: Exception) {
+                                shadowFaceImg.setImageDrawable(null)
                             }
                         }
-                        catch (e: Exception) {
-                            Log.d("Exception", "Request failed: $e")
+                        if (liveStatus.isEmpty()) {
+                            // 加载视频
+                            connectVideo()
+                            // 连接弹幕socket
+                            getDanmuInfo()
                         }
+                        else {
 
+                        }
+                    }
+                    catch (e: Exception) {
+                        Log.d("Exception", "Request failed: $e")
                     }
                 }
+            }
+        })
+    }
 
-            })
-
-            startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
-
-            recordingDurationLong = 0L
-
-            // 加载视频流信息
-            OkHttpClient().newCall(
+    private fun getDanmuInfo() {
+        OkHttpClient().newCall(
                 Request.Builder()
-                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$value&qn=$qn&platform=h5")
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${roomId}")
                     .headers(headers).build()
-                                  ).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.d("Exception", "Request failed: $e")
+                              ).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d("Exception", "Request failed: $e")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    return
                 }
-
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        Log.d("Exception", "Request failed with code: ${response.code}")
-                        return
+                response.body?.let {
+                    try {
+                        val bodyString = it.string()
+                        Log.d("loadinfo", bodyString)
+                        val jo = JSONObject(bodyString)
+                        val data = jo.getJSONObject("data")
+                        token = data.getString("token")
+                        host = data.getJSONArray("host_list").getJSONObject(0).getString("host")
+                        Log.d("Updated Token", token)
+                        Log.d("Updated Host", host)
+                        connectDanmu()
                     }
-                    response.body?.let { it2 ->
-                        var url = ""
-                        try {
-                            url =
-                                JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
-                                    .getJSONObject(0).getString("url")
-                        }
-                        catch (e: Exception) {
-                            Log.d("Exception", "Request failed: $e")
-                        }
-                        if (url.isEmpty()) return
+                    catch (e: Exception) {
+                        Log.d("Exception", "Parsing error: $e")
+                    }
+                } ?: run {
+                    Log.d("Exception", "Response body is null")
+                }
+            }
+        })
+    }
 
-                        Log.d("proxyurl", url)
+    fun connectVideo() {
+        startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
 
-                        handler.post {
-                            player = SimpleExoPlayer.Builder(context).build()
+        recordingDurationLong = 0L
+
+        // 加载视频流信息
+        OkHttpClient().newCall(
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$roomId&qn=$qn&platform=h5")
+                    .headers(headers).build()
+                              ).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d("Exception", "Request failed: $e")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    return
+                }
+                response.body?.let { it2 ->
+                    var url = ""
+                    try {
+                        url = JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
+                            .getJSONObject(0).getString("url")
+                    }
+                    catch (e: Exception) {
+                        Log.d("Exception", "Request failed: $e")
+                    }
+                    if (url.isEmpty()) return
+
+                    Log.d("proxyurl", url)
+
+                    myHandler.post {
+                        player = ExoPlayer.Builder(context).build()
 //                            player!!.addListener(object : Player.EventListener{
 //                                override fun onEvents(player: Player, events: Player.Events) {
 //                                    super.onEvents(player, events)
@@ -798,15 +826,37 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                }
 //                            })
 
-                            playerView.player = player
-                            player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
-                            player!!.playWhenReady = true
-                            player!!.prepare()
-                        }
+                        playerView.player = player
+                        player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
+                        player!!.playWhenReady = true
+                        player!!.prepare()
+                    }
 
-                        if (!isRecording) {
-                            handler.post {
-                                player!!.setMediaItem(MediaItem.fromUri(url))
+                    if (!isRecording) {
+                        // 刷新播放器的函数
+
+                        myHandler.post {
+                            player!!.setMediaItem(MediaItem.fromUri(url))
+
+                            player!!.addListener(object : Player.Listener {
+                                override fun onPlayerError(error: PlaybackException) {
+                                    super.onPlayerError(error)
+                                    // 在出现错误时自动刷新播放器
+                                    refreshPlayer("ERROR:${error}")
+                                }
+
+//                                override fun onPlaybackStateChanged(state: Int) {
+//                                    super.onPlaybackStateChanged(state)
+//                                    if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
+//                                        // 播放结束或空闲时，尝试重新加载媒体
+//                                        val msg =
+//                                                if (state == Player.STATE_ENDED) "STATE_ENDED" else "STATE_IDLE"
+//                                        refreshPlayer(msg)
+//                                    }
+//                                }
+                            })
+
+
 //                                val factory = DefaultHttpDataSource.Factory()
 //                                factory.setDefaultRequestProperties(mapOf(
 //                                    "User-Agent" to WebView(context).settings.userAgentString,
@@ -815,161 +865,175 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                val mediaSource = ProgressiveMediaSource.Factory(factory)
 //                                    .createMediaSource(MediaItem.fromUri(url))
 //                                player!!.setMediaSource(mediaSource)
-                            }
                         }
-                        else {
-                            Log.d("debug54", "record")
-                            var total: Long = 0
+                    }
+                    else {
+                        Log.d("debug54", "record")
+                        var total: Long = 0
 
-                            handler.post {
-                                player?.addListener(object : Player.Listener {
-                                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                                        super.onIsPlayingChanged(isPlaying)
-                                        Log.d("isplaying", isPlaying.toString())
-                                        if (isPlaying) {
-                                            recordingView.visibility = VISIBLE
+                        myHandler.post {
+                            player?.addListener(object : Player.Listener {
+                                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                                    super.onIsPlayingChanged(isPlaying)
+                                    Log.d("isplaying", isPlaying.toString())
+                                    if (isPlaying) {
+                                        recordingView.visibility = VISIBLE
 //                                            recordingDuration.text = "0:00"
-                                            recordingSize.text = RecordingUtils.byteString(total)
-                                            recordingTimer = Timer()
-                                            recordingTimer!!.schedule(object : TimerTask() {
-                                                override fun run() {
-                                                    handler.post {
-                                                        recordingDurationLong += 1
+                                        recordingSize.text = RecordingUtils.byteString(total)
+                                        recordingTimer = Timer()
+                                        recordingTimer!!.schedule(object : TimerTask() {
+                                            override fun run() {
+                                                myHandler.post {
+                                                    recordingDurationLong += 1
 //                                                        recordingDuration.text = ByteUtils.minuteString(recordingDurationLong)
-                                                        recordingSize.text =
+                                                    recordingSize.text =
                                                             RecordingUtils.byteString(total)
-                                                    }
-
                                                 }
-                                            }, 1000, 1000)
-                                        }
-                                        else {
-                                            Handler(Looper.getMainLooper()).post {
+
+                                            }
+                                        }, 1000, 1000)
+                                    }
+                                    else {
+                                        Handler(Looper.getMainLooper()).post {
 //                                                if (isRecording) {
 //                                                    isRecording = false
 //                                                    roomId = this@DDPlayer.roomId
 //                                                }
-                                                player?.play()
-                                            }
-
-
+                                            player?.play()
                                         }
-
                                     }
-                                })
+                                }
+                            })
+                        }
+
+
+                        OkHttpClient().newCall(
+                                Request.Builder().headers(liveHeaders.build()).url(url).build()
+                                              ).enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                Log.d("debug54", "response onFailure")
+                                e.printStackTrace()
                             }
 
-
-                            OkHttpClient().newCall(
-                                Request.Builder().headers(liveHeaders.build()).url(url).build()
-                                                  ).enqueue(object : Callback {
-                                override fun onFailure(call: Call, e: IOException) {
-                                    Log.d("debug54", "response onFailure")
-                                    e.printStackTrace()
-                                }
-
-                                override fun onResponse(call: Call, response: Response) {
-                                    Log.d("debug54", "response.code ${response.code}")
-                                    response.header("Content-Type", "")
-                                        ?.let { Log.d("debug54", it) }
+                            override fun onResponse(call: Call, response: Response) {
+                                Log.d("debug54", "response.code ${response.code}")
+                                response.header("Content-Type", "")?.let { Log.d("debug54", it) }
 //                                    if (response.code != 475) {
-//                                        handler.post {
+//                                        __handler.post {
 //                                            isRecording = false
 //                                            roomId = this@DDPlayer.roomId
 //                                        }
 //                                        return
 //                                    }
-                                    try {
-                                        val byteStream = response.body!!.byteStream()
-                                        val dir =
-                                            File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$value/")
-                                        if (!dir.exists()) dir.mkdirs()
+                                try {
+                                    val byteStream = response.body!!.byteStream()
+                                    val dir =
+                                            File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                    if (!dir.exists()) dir.mkdirs()
 
-                                        val cacheFile = File(dir, "$startTime.flv")
-                                        val outputStream = FileOutputStream(cacheFile)
+                                    val cacheFile = File(dir, "$startTime.flv")
+                                    val outputStream = FileOutputStream(cacheFile)
 
-                                        var len: Int
-                                        var loaded = false
+                                    var len: Int
+                                    var loaded = false
 
-                                        val buf = ByteArray(1024 * 1024)
-                                        while (true) {
-                                            len = byteStream.read(buf)
-                                            if (len == -1) break
+                                    val buf = ByteArray(1024 * 1024)
+                                    while (true) {
+                                        len = byteStream.read(buf)
+                                        if (len == -1) break
 
-                                            total += len
-                                            outputStream.write(buf, 0, len)
-                                            outputStream.flush()
+                                        total += len
+                                        outputStream.write(buf, 0, len)
+                                        outputStream.flush()
 
-                                            if (!loaded) {
-                                                loaded = true
-                                                handler.post {
-                                                    player!!.setMediaItem(
-                                                        MediaItem.fromUri(
-                                                            cacheFile.toUri()
-                                                                         )
-                                                                         )
-                                                }
+                                        if (!loaded) {
+                                            loaded = true
+                                            myHandler.post {
+                                                player!!.setMediaItem(MediaItem.fromUri(cacheFile.toUri()))
                                             }
-
-                                            if (!isRecording) break
                                         }
-                                        handler.post {
-                                            player?.stop()
-                                            roomId = this@DDPlayer.roomId
-                                            Toast.makeText(
+
+                                        if (!isRecording) break
+                                    }
+                                    myHandler.post {
+                                        player?.stop()
+                                        roomId = this@DDPlayer.roomId
+                                        Toast.makeText(
                                                 context,
                                                 "录像已保存${cacheFile.path}",
                                                 Toast.LENGTH_SHORT
-                                                          ).show()
-                                        }
-                                        outputStream.close()
-
+                                                      ).show()
                                     }
-                                    catch (e: Exception) {
-                                        e.printStackTrace()
-                                        if (isRecording) {
-                                            isRecording = false
-                                            handler.post {
-                                                player?.stop()
-                                                roomId = this@DDPlayer.roomId
-                                            }
+                                    outputStream.close()
+
+                                }
+                                catch (e: Exception) {
+                                    e.printStackTrace()
+                                    if (isRecording) {
+                                        isRecording = false
+                                        myHandler.post {
+                                            player?.stop()
+                                            roomId = this@DDPlayer.roomId
                                         }
                                     }
                                 }
+                            }
 
-                            })
+                        })
 
-                        }
-
-
-                    }
-                }
-
-            })
-
-            // 连接弹幕socket
-            connectDanmu()
-        }
-
-    fun checkAndToastCellular() {
-        try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
-            cm?.run {
-                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
-                    if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                        Log.d("checkAndToastCellular", "cellular")
-                        Toast.makeText(context, "正在使用流量数据，请注意消耗", Toast.LENGTH_SHORT)
-                            .show()
                     }
                 }
             }
-        }
-        catch (e: Exception) {
-            e.printStackTrace()
-        }
-
+        })
     }
 
+    fun refreshPlayer(msg: String) {
+        // 重新加载媒体
+        addMsg("${msg}，自动刷新")
+        roomId = roomId
+//        initPlayer()
+//        getBasicinfo()
+        return
+//        player!!.stop()
+//        OkHttpClient().newCall(
+//                Request.Builder()
+//                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$roomId&qn=$qn&platform=h5")
+//                    .headers(headers).build()
+//                              ).enqueue(object : Callback {
+//            override fun onFailure(call: Call, e: IOException) {
+//                val msg0 = "Request failed: $e"
+//                Log.d("Exception", msg0)
+//                addMsg(msg0)
+//            }
+//
+//            override fun onResponse(call: Call, response: Response) {
+//                if (!response.isSuccessful) {
+//                    val msg0 = "Request failed with code: ${response.code}"
+//                    Log.d("Exception", msg0)
+//                    addMsg(msg0)
+//                    return
+//                }
+//                response.body?.let { it2 ->
+//                    try {
+//                        val newurl =
+//                                JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
+//                                    .getJSONObject(0).getString("url")
+//                        if (newurl.isEmpty()) return
+//                        myHandler.post {
+//                            player!!.setMediaItem(MediaItem.fromUri(newurl))
+//                            player!!.playWhenReady = true
+//                            player!!.prepare()
+//                        }
+//                    }
+//                    catch (e: Exception) {
+//                        val msg0 = "Request failed: $e"
+//                        Log.d("Exception", msg0)
+//                        addMsg(msg0)
+//                    }
+//                }
+//            }
+//        })
+    }
 
     var reconnecting = false
     fun connectDanmu() {
@@ -1032,19 +1096,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 }
 
                 override fun onMessage(
-                    webSocket: WebSocket, bytes: ByteString
+                        webSocket: WebSocket, bytes: ByteString
                                       ) {
                     super.onMessage(webSocket, bytes)
                     val byteArray = bytes.toByteArray()
 //                Log.d("danmu", bytes.hex())
                     if (!reconnecting && byteArray[11] == 8.toByte()) {
-                        handler.post {
-                            danmuList.add(Pair("[系统] 已连接弹幕", null))
-                            danmuListViewAdapter.notifyDataSetInvalidated()
-                            danmuListView.setSelection(danmuListView.bottom)
-                            interpreterList.add("[系统] 已连接弹幕")
-                            interpreterViewAdapter.notifyDataSetInvalidated()
-                            interpreterListView.setSelection(interpreterListView.bottom)
+                        myHandler.post {
+                            addMsg("[系统] 已连接弹幕")
                         }
                     }
                     reconnecting = false
@@ -1052,7 +1111,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                         // 解压
                         val bis = ByteArrayInputStream(
-                            byteArray, 16, byteArray.size - 16
+                                byteArray, 16, byteArray.size - 16
                                                       )
                         var iis: InputStream? = null
                         if (byteArray[7] == 3.toByte()) {
@@ -1089,7 +1148,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 val nextLen = b2 * 256 + b3
 //                                Log.d("danmu", "$nextLen = $b2 *256 + $b3 / $len / ${unzipped.size}")
                                 val jstr = String(
-                                    unzipped, len + 16, nextLen - 16, Charsets.UTF_8
+                                        unzipped, len + 16, nextLen - 16, Charsets.UTF_8
                                                  )
 //                            Log.d("danmu", jstr)
                                 val jobj = JSONObject(jstr)
@@ -1106,26 +1165,26 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                     val danmu = jobj.getJSONArray("info").getString(1)
 
 //                                Log.d("danmu", "$roomId $danmu")
-                                    handler.post {
+                                    myHandler.post {
                                         danmuList.add(Pair(danmu, emojiUrl))
                                         danmuListViewAdapter.notifyDataSetInvalidated()
                                         danmuListView.setSelection(danmuListView.bottom)
-                                        
+
                                     }
                                     if (isRecording) {
                                         try {
                                             val dir =
-                                                File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                                    File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
                                             if (!dir.exists()) dir.mkdirs()
 
                                             val cacheFile = File(dir, "$startTime-danmu.txt")
                                             val writer = FileWriter(cacheFile, true)
                                             writer.write(
-                                                "${
-                                                    RecordingUtils.minuteString(
-                                                        recordingDurationLong
-                                                                               )
-                                                } $danmu\n"
+                                                    "${
+                                                        RecordingUtils.minuteString(
+                                                                recordingDurationLong
+                                                                                   )
+                                                    } $danmu\n"
                                                         )
                                             writer.close()
                                         }
@@ -1137,28 +1196,23 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 else if (cmd.startsWith("SUPER_CHAT_MESSAGE")) {
                                     Log.d("SC", jobj.toString())
                                     val danmu = jobj.getJSONObject("data").getString("message")
-                                    handler.post {
-                                        danmuList.add(Pair("[SC] $danmu", null))
-                                        danmuListViewAdapter.notifyDataSetInvalidated()
-                                        danmuListView.setSelection(danmuListView.bottom)
-                                        interpreterList.add("[SC] $danmu")
-                                        interpreterViewAdapter.notifyDataSetInvalidated()
-                                        interpreterListView.setSelection(interpreterListView.bottom)
+                                    myHandler.post {
+                                        addMsg("[SC] $danmu")
                                     }
                                     if (isRecording) {
                                         try {
                                             val dir =
-                                                File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                                    File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
                                             if (!dir.exists()) dir.mkdirs()
 
                                             val cacheFile = File(dir, "$startTime-danmu.txt")
                                             val writer = FileWriter(cacheFile, true)
                                             writer.write(
-                                                "${
-                                                    RecordingUtils.minuteString(
-                                                        recordingDurationLong
-                                                                               )
-                                                } [SC] $danmu\n"
+                                                    "${
+                                                        RecordingUtils.minuteString(
+                                                                recordingDurationLong
+                                                                                   )
+                                                    } [SC] $danmu\n"
                                                         )
                                             writer.close()
                                         }
@@ -1181,7 +1235,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 }
 
                 override fun onFailure(
-                    webSocket: WebSocket, t: Throwable, response: Response?
+                        webSocket: WebSocket, t: Throwable, response: Response?
                                       ) {
                     super.onFailure(webSocket, t, response)
                     Log.d("danmu", "$roomId fail ${t.message}")
@@ -1191,25 +1245,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                reconnecting = true
 //                connectDanmu()
 
-                    handler.post {
-                        if (danmuList.count() > 20) {
-                            danmuList.removeAt(0)
-                        }
-                        danmuList.add(Pair("[系统] 弹幕可能已断开，请刷新", null))
-                        danmuListViewAdapter.notifyDataSetInvalidated()
-                        danmuListView.setSelection(danmuListView.bottom)
-
-                        if (interpreterList.count() > 20) {
-                            interpreterList.removeAt(0)
-                        }
-                        interpreterList.add("[系统] 弹幕可能已断开，请刷新")
-                        interpreterViewAdapter.notifyDataSetInvalidated()
-                        interpreterListView.setSelection(interpreterListView.bottom)
+                    myHandler.post {
+                        addMsg("[系统] 弹幕可能已断开，请刷新")
                     }
                 }
 
                 override fun onClosing(
-                    webSocket: WebSocket, code: Int, reason: String
+                        webSocket: WebSocket, code: Int, reason: String
                                       ) {
                     super.onClosing(webSocket, code, reason)
                     Log.d("danmu", "closing")
@@ -1217,7 +1259,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 }
 
                 override fun onClosed(
-                    webSocket: WebSocket, code: Int, reason: String
+                        webSocket: WebSocket, code: Int, reason: String
                                      ) {
                     super.onClosed(webSocket, code, reason)
                     Log.d("danmu", "close")
@@ -1238,6 +1280,25 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                }
                 }
             })
+    }
+
+    fun checkAndToastCellular() {
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
+            cm?.run {
+                cm.getNetworkCapabilities(cm.activeNetwork)?.run {
+                    if (hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                        Log.d("checkAndToastCellular", "cellular")
+                        Toast.makeText(context, "正在使用流量数据，请注意消耗", Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
+            }
+        }
+        catch (e: Exception) {
+            e.printStackTrace()
+        }
+
     }
 
     // 宽高变化时调用，调整工具条，使得按钮隐藏，不超出宽度
@@ -1282,9 +1343,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //        app:layout_constraintWidth_percent=".2"
         val layoutParams = danmuView.layoutParams as LayoutParams
         layoutParams.horizontalBias =
-            if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 0f else 1f
+                if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 0f else 1f
         layoutParams.verticalBias =
-            if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 2) 0f else 1f
+                if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 2) 0f else 1f
         layoutParams.matchConstraintPercentWidth = playerOptions.danmuWidth
         layoutParams.matchConstraintPercentHeight = playerOptions.danmuHeight
 
@@ -1292,7 +1353,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
         val recordingViewLayoutParams = recordingView.layoutParams as LayoutParams
         recordingViewLayoutParams.horizontalBias =
-            if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 1f else 0f
+                if (playerOptions.danmuPosition == 0 || playerOptions.danmuPosition == 1) 1f else 0f
         recordingView.layoutParams = recordingViewLayoutParams
 
         val jstr = Gson().toJson(playerOptions)
