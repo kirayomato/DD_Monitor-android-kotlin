@@ -1,38 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
-    >
+    android:background="#000000">
 
     <androidx.media3.ui.PlayerView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/dd_player_view"
-        app:use_controller="false"
-        />
+        app:use_controller="false" />
 
-<!--    <TextView-->
-<!--        android:id="@+id/danmu_textView"-->
-<!--        android:layout_width="0dp"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:background="#99000000"-->
-<!--        android:textColor="#ffffff"-->
-<!--        app:layout_constraintBottom_toBottomOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toTopOf="parent"-->
-<!--        app:layout_constraintHeight_percent=".8"-->
-<!--        app:layout_constraintHorizontal_bias="0"-->
-<!--        app:layout_constraintVertical_bias="0"-->
-<!--        app:layout_constraintWidth_percent=".2"-->
-<!--        android:scrollbars="vertical"-->
-<!--        android:singleLine="false"-->
-<!--        android:maxLines="40"-->
-<!--        />-->
+    <!--    <TextView-->
+    <!--        android:id="@+id/danmu_textView"-->
+    <!--        android:layout_width="0dp"-->
+    <!--        android:layout_height="0dp"-->
+    <!--        android:background="#99000000"-->
+    <!--        android:textColor="#ffffff"-->
+    <!--        app:layout_constraintBottom_toBottomOf="parent"-->
+    <!--        app:layout_constraintEnd_toEndOf="parent"-->
+    <!--        app:layout_constraintStart_toStartOf="parent"-->
+    <!--        app:layout_constraintTop_toTopOf="parent"-->
+    <!--        app:layout_constraintHeight_percent=".8"-->
+    <!--        app:layout_constraintHorizontal_bias="0"-->
+    <!--        app:layout_constraintVertical_bias="0"-->
+    <!--        app:layout_constraintWidth_percent=".2"-->
+    <!--        android:scrollbars="vertical"-->
+    <!--        android:singleLine="false"-->
+    <!--        android:maxLines="40"-->
+    <!--        />-->
 
     <LinearLayout
         android:layout_width="0dp"
@@ -46,23 +43,22 @@
         app:layout_constraintVertical_bias="0"
         app:layout_constraintWidth_percent=".2"
         android:orientation="vertical"
-        android:id="@+id/danmu_view"
-        >
+        android:id="@+id/danmu_view">
+
         <ListView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:background="#80000000"
-            android:id="@+id/danmu_listView"
-            />
+            android:id="@+id/danmu_listView" />
+
         <ListView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:background="#80000000"
             android:id="@+id/interpreter_listView"
-            android:visibility="gone"
-            />
+            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout
@@ -80,24 +76,23 @@
         android:background="#80000000"
         android:id="@+id/recording_view"
         android:visibility="gone"
-        android:clickable="true"
-        >
+        android:clickable="true">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="●"
             android:textColor="#f00"
-            android:textSize="9sp"
-            />
-<!--        <TextView-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="0:00"-->
-<!--            android:textColor="#fff"-->
-<!--            android:layout_marginStart="2dp"-->
-<!--            android:id="@+id/recording_duration_textview"-->
-<!--            android:textSize="9sp"-->
-<!--            />-->
+            android:textSize="9sp" />
+        <!--        <TextView-->
+        <!--            android:layout_width="wrap_content"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            android:text="0:00"-->
+        <!--            android:textColor="#fff"-->
+        <!--            android:layout_marginStart="2dp"-->
+        <!--            android:id="@+id/recording_duration_textview"-->
+        <!--            android:textSize="9sp"-->
+        <!--            />-->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -105,8 +100,7 @@
             android:textColor="#fff"
             android:layout_marginStart="2dp"
             android:id="@+id/recording_size_textview"
-            android:textSize="9sp"
-            />
+            android:textSize="9sp" />
     </LinearLayout>
 
     <LinearLayout
@@ -117,8 +111,8 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:background="#80000000"
         android:orientation="horizontal"
-        android:id="@+id/player_control_bar"
-        >
+        android:id="@+id/player_control_bar">
+
         <Button
             android:layout_width="30dp"
             android:layout_height="match_parent"
@@ -126,8 +120,8 @@
             android:background="@android:color/transparent"
             android:textColor="#ffffff"
             android:text="&#xe618;"
-            android:id="@+id/refresh_btn"
-            />
+            android:id="@+id/refresh_btn" />
+
         <Button
             android:layout_width="30dp"
             android:layout_height="match_parent"
@@ -135,8 +129,8 @@
             android:background="@android:color/transparent"
             android:textColor="#ffffff"
             android:text="&#xe606;"
-            android:id="@+id/volume_btn"
-            />
+            android:id="@+id/volume_btn" />
+
         <Button
             android:layout_width="30dp"
             android:layout_height="match_parent"
@@ -144,18 +138,18 @@
             android:background="@android:color/transparent"
             android:textColor="#ffffff"
             android:text="&#xe696;"
-            android:id="@+id/danmu_btn"
-            />
+            android:id="@+id/danmu_btn" />
+
         <Button
             android:layout_width="30dp"
             android:layout_height="match_parent"
             android:padding="0dp"
             android:background="@android:color/transparent"
             android:textColor="#ffffff"
-            android:text="超清"
+            android:text="高清"
             android:textSize="11sp"
-            android:id="@+id/qn_btn"
-            />
+            android:id="@+id/qn_btn" />
+
         <Button
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
@@ -169,55 +163,54 @@
             android:textAllCaps="false"
             android:textSize="13sp"
             android:maxLines="1"
-            android:lines="1"
-            />
+            android:lines="1" />
     </LinearLayout>
 
-<!--    <LinearLayout-->
-<!--        android:layout_width="30dp"-->
-<!--        android:layout_height="130dp"-->
-<!--        app:layout_constraintBottom_toTopOf="@id/player_control_bar"-->
-<!--        app:layout_constraintLeft_toLeftOf="parent"-->
-<!--        app:layout_constraintRight_toRightOf="parent"-->
-<!--        app:layout_constraintHorizontal_bias="0"-->
-<!--        android:layout_marginStart="30dp"-->
-<!--        android:background="#80000000"-->
-<!--        android:orientation="vertical"-->
-<!--        android:visibility="invisible"-->
-<!--        android:id="@+id/volume_bar"-->
-<!--        >-->
+    <!--    <LinearLayout-->
+    <!--        android:layout_width="30dp"-->
+    <!--        android:layout_height="130dp"-->
+    <!--        app:layout_constraintBottom_toTopOf="@id/player_control_bar"-->
+    <!--        app:layout_constraintLeft_toLeftOf="parent"-->
+    <!--        app:layout_constraintRight_toRightOf="parent"-->
+    <!--        app:layout_constraintHorizontal_bias="0"-->
+    <!--        android:layout_marginStart="30dp"-->
+    <!--        android:background="#80000000"-->
+    <!--        android:orientation="vertical"-->
+    <!--        android:visibility="invisible"-->
+    <!--        android:id="@+id/volume_bar"-->
+    <!--        >-->
 
-<!--        <com.h6ah4i.android.widget.verticalseekbar.VerticalSeekBarWrapper-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="0dp"-->
-<!--            android:layout_weight="1">-->
-<!--            <com.h6ah4i.android.widget.verticalseekbar.VerticalSeekBar-->
-<!--                android:id="@+id/volume_slider"-->
-<!--                android:layout_width="0dp"-->
-<!--                android:layout_height="0dp"-->
-<!--                android:splitTrack="false"-->
-<!--                app:seekBarRotation="CW270"-->
-<!--                android:progress="100"-->
-<!--                /> &lt;!&ndash; Rotation: CW90 or CW270 &ndash;&gt;-->
-<!--        </com.h6ah4i.android.widget.verticalseekbar.VerticalSeekBarWrapper>-->
+    <!--        <com.h6ah4i.android.widget.verticalseekbar.VerticalSeekBarWrapper-->
+    <!--            android:layout_width="match_parent"-->
+    <!--            android:layout_height="0dp"-->
+    <!--            android:layout_weight="1">-->
+    <!--            <com.h6ah4i.android.widget.verticalseekbar.VerticalSeekBar-->
+    <!--                android:id="@+id/volume_slider"-->
+    <!--                android:layout_width="0dp"-->
+    <!--                android:layout_height="0dp"-->
+    <!--                android:splitTrack="false"-->
+    <!--                app:seekBarRotation="CW270"-->
+    <!--                android:progress="100"-->
+    <!--                /> &lt;!&ndash; Rotation: CW90 or CW270 &ndash;&gt;-->
+    <!--        </com.h6ah4i.android.widget.verticalseekbar.VerticalSeekBarWrapper>-->
 
-<!--&lt;!&ndash;        <SeekBar&ndash;&gt;-->
-<!--&lt;!&ndash;            android:layout_width="wrap_content"&ndash;&gt;-->
-<!--&lt;!&ndash;            android:layout_height="0dp"&ndash;&gt;-->
-<!--&lt;!&ndash;            android:layout_weight="1"&ndash;&gt;-->
-<!--&lt;!&ndash;            android:id="@+id/volume_slider"&ndash;&gt;-->
-<!--&lt;!&ndash;            />&ndash;&gt;-->
+    <!--&lt;!&ndash;        <SeekBar&ndash;&gt;-->
+    <!--&lt;!&ndash;            android:layout_width="wrap_content"&ndash;&gt;-->
+    <!--&lt;!&ndash;            android:layout_height="0dp"&ndash;&gt;-->
+    <!--&lt;!&ndash;            android:layout_weight="1"&ndash;&gt;-->
+    <!--&lt;!&ndash;            android:id="@+id/volume_slider"&ndash;&gt;-->
+    <!--&lt;!&ndash;            />&ndash;&gt;-->
 
-<!--        <Button-->
-<!--            android:layout_width="30dp"-->
-<!--            android:layout_height="30dp"-->
-<!--            android:padding="0dp"-->
-<!--            android:background="@android:color/transparent"-->
-<!--            android:textColor="#ffffff"-->
-<!--            android:text="&#xe607;"-->
-<!--            android:id="@+id/mute_btn"-->
-<!--            />-->
-<!--    </LinearLayout>-->
+    <!--        <Button-->
+    <!--            android:layout_width="30dp"-->
+    <!--            android:layout_height="30dp"-->
+    <!--            android:padding="0dp"-->
+    <!--            android:background="@android:color/transparent"-->
+    <!--            android:textColor="#ffffff"-->
+    <!--            android:text="&#xe607;"-->
+    <!--            android:id="@+id/mute_btn"-->
+    <!--            />-->
+    <!--    </LinearLayout>-->
 
     <FrameLayout
         android:layout_width="80dp"
@@ -225,8 +218,8 @@
         android:visibility="invisible"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        android:id="@+id/shadow_view"
-        >
+        android:id="@+id/shadow_view">
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -235,13 +228,12 @@
             android:background="@drawable/round"
             android:textColor="#000"
             android:textSize="30sp"
-            android:id="@+id/shadow_textview"
-            />
+            android:id="@+id/shadow_textview" />
+
         <ImageView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:id="@+id/shadow_imageview"
-            />
+            android:id="@+id/shadow_imageview" />
     </FrameLayout>
 
 

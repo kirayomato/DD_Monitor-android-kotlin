@@ -439,13 +439,12 @@ class MainActivity : AppCompatActivity() {
             val pop = PopupMenu(this, qnBtn)
             pop.menuInflater.inflate(R.menu.qn_menu, pop.menu)
             pop.setOnMenuItemClickListener {
-                var newQn = 250
+                var newQn = 150
                 when (it.itemId) {
                     R.id.qn_10000 -> newQn = 10000
                     R.id.qn_400 -> newQn = 400
                     R.id.qn_250 -> newQn = 250
                     R.id.qn_150 -> newQn = 150
-                    R.id.qn_80 -> newQn = 80
                 }
                 // 修改全部的画质 setter自动刷新
                 for (p in ddLayout.players) {

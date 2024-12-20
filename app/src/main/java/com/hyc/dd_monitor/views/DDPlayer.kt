@@ -87,7 +87,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var playerOptions = PlayerOptions()
 
     // 刷新画质
-    var qn: Int = 250
+    var qn: Int = 150
         set(value) {
             if (field != value) {
                 field = value
@@ -97,7 +97,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     400 -> qnBtn.text = "蓝光"
                     250 -> qnBtn.text = "超清"
                     150 -> qnBtn.text = "高清"
-                    80 -> qnBtn.text = "流畅"
                 }
                 if (isRecording) {
                     isRecording = false
@@ -584,13 +583,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         val pop = PopupMenu(context, qnBtn)
         pop.menuInflater.inflate(R.menu.qn_menu, pop.menu)
         pop.setOnMenuItemClickListener {
-            var newQn = 250
+            var newQn = 150
             when (it.itemId) {
                 R.id.qn_10000 -> newQn = 10000
                 R.id.qn_400 -> newQn = 400
                 R.id.qn_250 -> newQn = 250
                 R.id.qn_150 -> newQn = 150
-                R.id.qn_80 -> newQn = 80
             }
             if (newQn != qn) {
                 qn = newQn
