@@ -13,7 +13,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.DragEvent
-import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
@@ -30,6 +29,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -166,8 +166,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var volumeChangedListener: SeekBar.OnSeekBarChangeListener
 
     init {
-        liveHeaders.set("connection", "Upgrade")
-        liveHeaders.set("accept-encoding", "gzip, deflate, br, zstd")
+        liveHeaders["connection"] = "Upgrade"
+        liveHeaders["accept-encoding"] = "gzip, deflate, br, zstd"
 
         layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
@@ -626,26 +626,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         interpreterListView.setSelection(interpreterListView.bottom)
     }
 
-    var liveStatus = "(未开播)"
 
     /**
      * roomId setter 设置后立即开始加载播放
      */
-
     var roomId: String? = null
         set(value) {
             // 初始化播放器相关、弹幕socket相关的对象
-            playerView.player = null
-            player?.stop()
-            player?.release()
-            socketTimer?.cancel()
-            socket?.close(1000, null)
-
-            shadowFaceImg.setImageDrawable(null)
-
-            player = null
-            socket = null
-            socketTimer = null
+            initPlayer()
 
             playerNameBtn.text = "#${playerId + 1}: 空"
             shadowTextView.text = "#${playerId + 1}"
@@ -676,101 +664,121 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             playerNameBtn.text = "#${playerId + 1}: 加载中"
 
             liveHeaders["referer"] = "https://live.bilibili.com/${value}"
-            OkHttpClient().newCall(
-                    Request.Builder()
-                        .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${value}")
-                        .headers(headers).build()
-                                  ).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.d("Exception", "Request failed: $e")
-                }
 
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        Log.d("Exception", "Request failed with code: ${response.code}")
-                        return
-                    }
-
-                    response.body?.let {
-                        try {
-                            val bodyString = it.string()
-                            Log.d("loadinfo", bodyString)
-
-                            val jo = JSONObject(bodyString)
-                            val data = jo.getJSONObject("data")
-                            token = data.getString("token")
-                            host = data.getJSONArray("host_list").getJSONObject(0).getString("host")
-
-                            Log.d("Updated Token", token)
-                            Log.d("Updated Host", host)
-                        }
-                        catch (e: Exception) {
-                            Log.d("Exception", "Parsing error: $e")
-                        }
-                    } ?: run {
-                        Log.d("Exception", "Response body is null")
-                    }
-                }
-            })
             checkAndToastCellular()
 
             // 加载基础信息
-            OkHttpClient().newCall(
-                    Request.Builder()
-                        .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=$value")
-                        .headers(headers).build()
-                                  ).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    Log.d("Exception", "Request failed: $e")
-                }
-
-                override fun onResponse(call: Call, response: Response) {
-                    if (!response.isSuccessful) {
-                        Log.d("Exception", "Request failed with code: ${response.code}")
-                        return
-                    }
-                    response.body?.let {
-                        try {
-                            val jo = JSONObject(it.string())
-                            val data = jo.getJSONObject("data")
-                            val roomInfo = data.getJSONObject("room_info")
-                            val anchorInfo =
-                                    data.getJSONObject("anchor_info").getJSONObject("base_info")
-
-                            liveStatus = if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
-                            val uname = anchorInfo.getString("uname")
-                            val face = anchorInfo.getString("face").replace("http://", "https://")
-//                            Log.d("shadowFaceImg", shadowFaceImg)
-                            myHandler.post {
-                                playerNameBtn.text = "#${playerId + 1}: $liveStatus$uname"
-                                shadowTextView.text = "#${playerId + 1}"
-                                try {
-                                    Picasso.get().load(face).transform(RoundImageTransform())
-                                        .into(shadowFaceImg)
-                                }
-                                catch (e: Exception) {
-                                    shadowFaceImg.setImageDrawable(null)
-                                }
-
-                            }
-                        }
-                        catch (e: Exception) {
-                            Log.d("Exception", "Request failed: $e")
-                        }
-                    }
-                }
-            })
-
-            // 加载视频
-            connectVideo()
-            // 连接弹幕socket
-            connectDanmu()
+            getBasicinfo()
         }
 
+    fun initPlayer() {
+        playerView.player = null
+        player?.stop()
+        player?.release()
+        socketTimer?.cancel()
+        socket?.close(1000, null)
+
+        shadowFaceImg.setImageDrawable(null)
+
+        player = null
+        socket = null
+        socketTimer = null
+    }
+
+    private fun getBasicinfo() {
+        OkHttpClient().newCall(
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id=${roomId}")
+                    .headers(headers).build()
+                              ).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d("Exception", "Request failed: $e")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    return
+                }
+                response.body?.let {
+                    try {
+                        val jo = JSONObject(it.string())
+                        val data = jo.getJSONObject("data")
+                        val roomInfo = data.getJSONObject("room_info")
+                        val anchorInfo =
+                                data.getJSONObject("anchor_info").getJSONObject("base_info")
+
+                        val liveStatus = if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
+                        val uname = anchorInfo.getString("uname")
+                        val face = anchorInfo.getString("face").replace("http://", "https://")
+//                            Log.d("shadowFaceImg", shadowFaceImg)
+                        myHandler.post {
+                            playerNameBtn.text = "#${playerId + 1}: $liveStatus$uname"
+                            shadowTextView.text = "#${playerId + 1}"
+                            try {
+                                Picasso.get().load(face).transform(RoundImageTransform())
+                                    .into(shadowFaceImg)
+                            }
+                            catch (e: Exception) {
+                                shadowFaceImg.setImageDrawable(null)
+                            }
+                        }
+                        if (liveStatus.isEmpty()) {
+                            // 加载视频
+                            connectVideo()
+                            // 连接弹幕socket
+                            getDanmuInfo()
+                        }
+                        else {
+
+                        }
+                    }
+                    catch (e: Exception) {
+                        Log.d("Exception", "Request failed: $e")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun getDanmuInfo() {
+        OkHttpClient().newCall(
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${roomId}")
+                    .headers(headers).build()
+                              ).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d("Exception", "Request failed: $e")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    return
+                }
+                response.body?.let {
+                    try {
+                        val bodyString = it.string()
+                        Log.d("loadinfo", bodyString)
+                        val jo = JSONObject(bodyString)
+                        val data = jo.getJSONObject("data")
+                        token = data.getString("token")
+                        host = data.getJSONArray("host_list").getJSONObject(0).getString("host")
+                        Log.d("Updated Token", token)
+                        Log.d("Updated Host", host)
+                        connectDanmu()
+                    }
+                    catch (e: Exception) {
+                        Log.d("Exception", "Parsing error: $e")
+                    }
+                } ?: run {
+                    Log.d("Exception", "Response body is null")
+                }
+            }
+        })
+    }
 
     fun connectVideo() {
-        if (liveStatus.isNotEmpty()) return
-
         startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
 
         recordingDurationLong = 0L
@@ -803,7 +811,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                     Log.d("proxyurl", url)
 
-                    val textureView = TextureView(context)
                     myHandler.post {
                         player = ExoPlayer.Builder(context).build()
 //                            player!!.addListener(object : Player.EventListener{
@@ -818,7 +825,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                    error.printStackTrace()
 //                                }
 //                            })
-                        player!!.setVideoTextureView(textureView)
 
                         playerView.player = player
                         player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
@@ -827,8 +833,30 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
 
                     if (!isRecording) {
+                        // 刷新播放器的函数
+
                         myHandler.post {
                             player!!.setMediaItem(MediaItem.fromUri(url))
+
+                            player!!.addListener(object : Player.Listener {
+                                override fun onPlayerError(error: PlaybackException) {
+                                    super.onPlayerError(error)
+                                    // 在出现错误时自动刷新播放器
+                                    refreshPlayer("ERROR:${error}")
+                                }
+
+//                                override fun onPlaybackStateChanged(state: Int) {
+//                                    super.onPlaybackStateChanged(state)
+//                                    if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
+//                                        // 播放结束或空闲时，尝试重新加载媒体
+//                                        val msg =
+//                                                if (state == Player.STATE_ENDED) "STATE_ENDED" else "STATE_IDLE"
+//                                        refreshPlayer(msg)
+//                                    }
+//                                }
+                            })
+
+
 //                                val factory = DefaultHttpDataSource.Factory()
 //                                factory.setDefaultRequestProperties(mapOf(
 //                                    "User-Agent" to WebView(context).settings.userAgentString,
@@ -921,11 +949,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                         if (!loaded) {
                                             loaded = true
                                             myHandler.post {
-                                                player!!.setMediaItem(
-                                                        MediaItem.fromUri(
-                                                                cacheFile.toUri()
-                                                                         )
-                                                                     )
+                                                player!!.setMediaItem(MediaItem.fromUri(cacheFile.toUri()))
                                             }
                                         }
 
@@ -958,17 +982,61 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         })
 
                     }
-
-
                 }
             }
-
         })
+    }
+
+    fun refreshPlayer(msg: String) {
+        // 重新加载媒体
+        addMsg("${msg}，自动刷新")
+        roomId = roomId
+//        initPlayer()
+//        getBasicinfo()
+        return
+//        player!!.stop()
+//        OkHttpClient().newCall(
+//                Request.Builder()
+//                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$roomId&qn=$qn&platform=h5")
+//                    .headers(headers).build()
+//                              ).enqueue(object : Callback {
+//            override fun onFailure(call: Call, e: IOException) {
+//                val msg0 = "Request failed: $e"
+//                Log.d("Exception", msg0)
+//                addMsg(msg0)
+//            }
+//
+//            override fun onResponse(call: Call, response: Response) {
+//                if (!response.isSuccessful) {
+//                    val msg0 = "Request failed with code: ${response.code}"
+//                    Log.d("Exception", msg0)
+//                    addMsg(msg0)
+//                    return
+//                }
+//                response.body?.let { it2 ->
+//                    try {
+//                        val newurl =
+//                                JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
+//                                    .getJSONObject(0).getString("url")
+//                        if (newurl.isEmpty()) return
+//                        myHandler.post {
+//                            player!!.setMediaItem(MediaItem.fromUri(newurl))
+//                            player!!.playWhenReady = true
+//                            player!!.prepare()
+//                        }
+//                    }
+//                    catch (e: Exception) {
+//                        val msg0 = "Request failed: $e"
+//                        Log.d("Exception", msg0)
+//                        addMsg(msg0)
+//                    }
+//                }
+//            }
+//        })
     }
 
     var reconnecting = false
     fun connectDanmu() {
-        if (liveStatus.isNotEmpty()) return
         socket = OkHttpClient.Builder().build()
             .newWebSocket(Request.Builder().url("wss://${host}:2245/sub")
                               .headers(liveHeaders.build()).build(), object : WebSocketListener() {

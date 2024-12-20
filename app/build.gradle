@@ -15,6 +15,11 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+    applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach {
+            outputFileName = "DD_Monitor-${variant.versionName}-${variant.buildType.name}.apk"
+        }
+    }
 
     buildTypes {
         release {
