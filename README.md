@@ -1,3 +1,6 @@
+因为原作者不更新了所以自己尝试写了一下修修bug，不懂安卓乱写的，有问题请先自己解决
+
+---
 # DD_Monitor-android-kotlin
 
 ![GitHub all releases](https://img.shields.io/github/downloads/congHu/DD_Monitor-android-kotlin/total)
