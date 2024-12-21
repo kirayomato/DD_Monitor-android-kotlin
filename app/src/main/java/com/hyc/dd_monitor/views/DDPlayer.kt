@@ -246,6 +246,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     danmuList.remove(danmu)
                     danmuListViewAdapter.notifyDataSetInvalidated()
                 }
+                else if (it.itemId == R.id.danmu_clear_all) {
+                    danmuList.removeAll(danmuList)
+                    danmuListViewAdapter.notifyDataSetInvalidated()
+                }
                 return@setOnMenuItemClickListener true
             }
             pop.show()
@@ -304,6 +308,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             pop.setOnMenuItemClickListener {
                 if (it.itemId == R.id.danmu_clear) {
                     interpreterList.remove(danmu)
+                    interpreterViewAdapter.notifyDataSetInvalidated()
+                }
+                else if (it.itemId == R.id.danmu_clear_all) {
+                    interpreterList.removeAll(interpreterList)
                     interpreterViewAdapter.notifyDataSetInvalidated()
                 }
                 return@setOnMenuItemClickListener true
@@ -615,8 +623,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var startTime = ""
     var recordingDurationLong = 0L
 
-    fun addMsg(msg: String) {
-        danmuList.add(Pair(msg, null))
+    fun addMsg(msg: String, emoji: String? = null) {
+        // 合并重复弹幕
+        if (danmuList.lastOrNull()?.first == msg) return
+
+        danmuList.add(Pair(msg, emoji))
         danmuListViewAdapter.notifyDataSetInvalidated()
         danmuListView.setSelection(danmuListView.bottom)
         interpreterList.add(msg)
@@ -636,7 +647,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             playerNameBtn.text = "#${playerId + 1}: 空"
             shadowTextView.text = "#${playerId + 1}"
 
-            if (value != null && field != value) {
+            if (field != value) {
                 // 新的id则弹幕清屏
                 danmuList.removeAll(danmuList)
                 danmuListViewAdapter.notifyDataSetInvalidated()
@@ -646,6 +657,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                 isRecording = false
             }
+
             field = value
 
             recordingView.visibility = GONE
@@ -1164,10 +1176,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
 //                                Log.d("danmu", "$roomId $danmu")
                                     myHandler.post {
-                                        danmuList.add(Pair(danmu, emojiUrl))
-                                        danmuListViewAdapter.notifyDataSetInvalidated()
-                                        danmuListView.setSelection(danmuListView.bottom)
-
+                                        addMsg(danmu, emojiUrl)
                                     }
                                     if (isRecording) {
                                         try {
