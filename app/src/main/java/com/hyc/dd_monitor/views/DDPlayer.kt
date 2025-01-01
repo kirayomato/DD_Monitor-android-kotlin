@@ -1000,7 +1000,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     fun refreshPlayer(msg: String) {
         // 重新加载媒体
         addMsg("${msg}，自动刷新")
-        roomId = roomId
+        this.roomId = roomId
 //        initPlayer()
 //        getBasicinfo()
         return
