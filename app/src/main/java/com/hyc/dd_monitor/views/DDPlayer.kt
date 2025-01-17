@@ -796,11 +796,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         // 加载视频流信息
         OkHttpClient().newCall(
                 Request.Builder()
-                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$roomId&qn=$qn&platform=h5")
+                    .url("https://api.live.bilibili.com/room/v1/Room/playUrl?cid=$roomId&qn=$qn&platform=web")
                     .headers(headers).build()
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.d("Exception", "Request failed: $e")
+                myHandler.post {
+                    addMsg("[系统] 获取播放链接失败，${e}")
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
@@ -820,8 +823,29 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     if (url.isEmpty()) return
 
                     Log.d("proxyurl", url)
-
+                    var ql = ""
+                    var format = ""
+                    try {
+                        """(live_[^/?]+)""".toRegex().find(url)?.groupValues?.get(1)?.let {
+                            val file = it.split(".")
+                            format = file[1]
+                            if (format == "m3u8") format = "hls"
+                            val parts = file[0].split('_')
+                            if (parts.size == 4) {
+                                when (parts[3]) {
+                                    "4000" -> ql = "蓝光"
+                                    "2500" -> ql = "超清"
+                                    "1500" -> ql = "高清"
+                                }
+                            }
+                            else ql = "原画"
+                        }
+                    }
+                    catch (e: Exception) {
+                        Log.d("Exception", "URL parsing error: $e")
+                    }
                     myHandler.post {
+                        addMsg("[系统] 成功获得播放链接，当前画质：${ql}，格式：${format}")
                         player = ExoPlayer.Builder(context).build()
 //                            player!!.addListener(object : Player.EventListener{
 //                                override fun onEvents(player: Player, events: Player.Events) {
