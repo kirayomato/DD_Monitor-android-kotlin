@@ -11,10 +11,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import com.hyc.dd_monitor.R
-import com.hyc.dd_monitor.utils.RoundImageTransform
-import com.squareup.picasso.Picasso
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -34,7 +33,7 @@ class UidImportDialog(context: Context) : Dialog(context) {
 
     var selectedSet: MutableSet<String> = mutableSetOf()
 
-    var onImportFinishedListener: ((toImport: Set<String>)->Unit)? = null
+    var onImportFinishedListener: ((toImport: Set<String>) -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,7 +81,11 @@ class UidImportDialog(context: Context) : Dialog(context) {
 
                 val upInfo = result[p0]
 
-                checkbox.visibility = if (selectedSet.contains(upInfo.getInt("room_id").toString())) View.VISIBLE else View.GONE
+                checkbox.visibility = if (selectedSet.contains(
+                                upInfo.getInt("room_id").toString()
+                                                              )
+                ) View.VISIBLE
+                else View.GONE
 
                 try {
 
@@ -94,14 +97,16 @@ class UidImportDialog(context: Context) : Dialog(context) {
 
                     if (upInfo.getInt("live_status") == 1) {
                         isLiveCover.visibility = View.GONE
-                    }else{
+                    }
+                    else {
                         isLiveCover.visibility = View.VISIBLE
                         isLiveCover.text = "未开播"
                     }
+                    Glide.with(context).load(upInfo.getString("face")).circleCrop().into(face)
+                    Glide.with(context).load(upInfo.getString("keyframe")).into(cover)
 
-                    Picasso.get().load(upInfo.getString("face")).transform(RoundImageTransform()).into(face)
-                    Picasso.get().load(upInfo.getString("keyframe")).into(cover)
-                }catch (e: Exception) {
+                }
+                catch (e: Exception) {
 
                 }
 
@@ -132,7 +137,8 @@ class UidImportDialog(context: Context) : Dialog(context) {
 
                 Toast.makeText(context, "查询中", Toast.LENGTH_SHORT).show()
                 loadMids(uid, 1)
-            }else{
+            }
+            else {
                 Toast.makeText(context, "无效的uid", Toast.LENGTH_SHORT).show()
             }
         }
@@ -141,7 +147,8 @@ class UidImportDialog(context: Context) : Dialog(context) {
             val roomId = result[i].getInt("room_id").toString()
             if (selectedSet.contains(roomId)) {
                 selectedSet.remove(roomId)
-            }else{
+            }
+            else {
                 selectedSet.add(roomId)
             }
             Log.d("uid", selectedSet.size.toString())
@@ -153,10 +160,11 @@ class UidImportDialog(context: Context) : Dialog(context) {
 
         importBtn.setOnClickListener {
             var uplist = mutableListOf<String>()
-            context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE).getString("uplist", "")?.let {
-                uplist = it.split(" ").toMutableList()
-                Log.d("uplist", it)
-            }
+            context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)
+                .getString("uplist", "")?.let {
+                    uplist = it.split(" ").toMutableList()
+                    Log.d("uplist", it)
+                }
             if (uplist.count() == 0 || uplist[0].isEmpty()) {
                 uplist = mutableListOf()
             }
@@ -184,11 +192,10 @@ class UidImportDialog(context: Context) : Dialog(context) {
     fun loadMids(uid: String, pn: Int) {
         Log.d("uid", "loadmids")
         OkHttpClient().newCall(
-            Request.Builder()
-                .url("https://api.bilibili.com/x/relation/followings?vmid=$uid&pn=$pn&ps=50&order=desc&jsonp=jsonp")
-                .headers(headers)
-                .build()
-        ).enqueue(object : Callback {
+                Request.Builder()
+                    .url("https://api.bilibili.com/x/relation/followings?vmid=$uid&pn=$pn&ps=50&order=desc&jsonp=jsonp")
+                    .headers(headers).build()
+                              ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
             }
@@ -212,16 +219,19 @@ class UidImportDialog(context: Context) : Dialog(context) {
                                 mids.add(list.getJSONObject(i).getInt("mid"))
                             }
                             loadMids(uid, pn + 1)
-                        }else{
+                        }
+                        else {
                             loadRoomInfo()
                         }
-                    }catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         e.printStackTrace()
                         if (mids.count() == 0) {
                             handler.post {
                                 Toast.makeText(context, "查询uid失败", Toast.LENGTH_SHORT).show()
                             }
-                        }else{
+                        }
+                        else {
                             loadRoomInfo()
                         }
                     }
@@ -234,14 +244,13 @@ class UidImportDialog(context: Context) : Dialog(context) {
     }
 
     fun loadRoomInfo() {
-        val body = Gson().toJson(mapOf(Pair("uids", mids))).toRequestBody("application/json; charset=utf-8".toMediaType())
+        val body = Gson().toJson(mapOf(Pair("uids", mids)))
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
         OkHttpClient().newCall(
-            Request.Builder()
-                .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
-                .method("POST", body)
-                .headers(headers)
-                .build()
-        ).enqueue(object : Callback {
+                Request.Builder()
+                    .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
+                    .method("POST", body).headers(headers).build()
+                              ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
 
             }
@@ -260,7 +269,8 @@ class UidImportDialog(context: Context) : Dialog(context) {
                         handler.post {
                             adapter.notifyDataSetInvalidated()
                         }
-                    }catch (e: Exception) {
+                    }
+                    catch (e: Exception) {
                         e.printStackTrace()
                         handler.post {
                             Toast.makeText(context, "查询uid失败", Toast.LENGTH_SHORT).show()

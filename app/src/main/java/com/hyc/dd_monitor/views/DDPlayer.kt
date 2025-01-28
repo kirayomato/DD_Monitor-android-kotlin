@@ -33,13 +33,12 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.bumptech.glide.Glide
 import com.google.gson.Gson
 import com.hyc.dd_monitor.R
 import com.hyc.dd_monitor.headers
 import com.hyc.dd_monitor.models.PlayerOptions
 import com.hyc.dd_monitor.utils.RecordingUtils
-import com.hyc.dd_monitor.utils.RoundImageTransform
-import com.squareup.picasso.Picasso
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -223,7 +222,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 if (danmuObj.second != null) {
                     textview.visibility = GONE
                     imgview.visibility = VISIBLE
-                    Picasso.get().load(danmuObj.second).into(imgview)
+                    Glide.with(context).load(danmuObj.second).into(imgview)
                 }
                 else {
                     textview.visibility = VISIBLE
@@ -442,7 +441,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     roomId = dragEvent.clipData.getItemAt(0).text.toString()
                     val face = dragEvent.clipData.getItemAt(1).text.toString()
                     try {
-                        Picasso.get().load(face).transform(RoundImageTransform())
+                        Glide.with(context).load(face).circleCrop()
                             .into(shadowFaceImg) // 用于拖动的头像view
                     }
                     catch (e: Exception) {
@@ -726,8 +725,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             playerNameBtn.text = "#${playerId + 1}: $liveStatus$uname"
                             shadowTextView.text = "#${playerId + 1}"
                             try {
-                                Picasso.get().load(face).transform(RoundImageTransform())
-                                    .into(shadowFaceImg)
+                                Glide.with(context).load(face).circleCrop()
+                                    .into(shadowFaceImg) // 用于拖动的头像view
+
                             }
                             catch (e: Exception) {
                                 shadowFaceImg.setImageDrawable(null)
@@ -789,6 +789,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     }
 
     fun connectVideo() {
+        // 连接视频流
         startTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.CHINA).format(Date())
 
         recordingDurationLong = 0L
@@ -1022,7 +1023,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     }
 
     fun refreshPlayer(msg: String) {
-        // 重新加载媒体
+        // 重新加载播放器
         addMsg("${msg}，自动刷新")
         this.roomId = roomId
 //        initPlayer()
@@ -1071,6 +1072,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
     var reconnecting = false
     fun connectDanmu() {
+        // 连接弹幕
         socket = OkHttpClient.Builder().build()
             .newWebSocket(Request.Builder().url("wss://${host}:2245/sub")
                               .headers(liveHeaders.build()).build(), object : WebSocketListener() {

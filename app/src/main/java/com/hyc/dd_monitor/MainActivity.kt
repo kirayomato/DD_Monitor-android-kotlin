@@ -26,13 +26,13 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
 import com.google.zxing.integration.android.IntentIntegrator
 import com.hyc.dd_monitor.models.UPInfo
-import com.hyc.dd_monitor.utils.RoundImageTransform
 import com.hyc.dd_monitor.views.*
-import com.squareup.picasso.Picasso
+
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -251,40 +251,37 @@ class MainActivity : AppCompatActivity() {
                 val uname = view.findViewById<TextView>(R.id.up_uname_textview)
                 val title = view.findViewById<TextView>(R.id.up_title_textview)
                 val shadow = view.findViewById<ImageView>(R.id.shadow_imageview) // 用于拖动的头像view
-
                 val isLiveCover = view.findViewById<TextView>(R.id.up_islive_cover)
-
 
                 val roomId = uplist[p0]
 
                 if (upinfos.containsKey(roomId)) {
                     val upInfo = upinfos[roomId]
                     try {
-                        Picasso.get().load(upInfo?.faceImageUrl).transform(RoundImageTransform())
-                            .into(shadow) // 用于拖动的头像view
-                        Picasso.get().load(upInfo?.faceImageUrl).transform(RoundImageTransform())
-                            .into(face)
+                        upInfo?.faceImageUrl?.let { url ->
+                            Glide.with(this@MainActivity).load(url)
+                                .circleCrop() // 替代 RoundImageTransform
+                                .into(shadow) // 用于拖动的头像view
+
+                            Glide.with(this@MainActivity).load(url).circleCrop().into(face)
+                        }
                     }
                     catch (e: Exception) {
                         face.setImageDrawable(null)
                         shadow.setImageDrawable(null)
                     }
 
-                    try {
-                        Picasso.get().load(upInfo?.coverImageUrl).into(cover)
+                    if (upInfo?.isLive == true) {
+                        try {
+                            Glide.with(this@MainActivity).load(upInfo.coverImageUrl).into(cover)
+                        }
+                        catch (e: Exception) {
+                            cover.setImageDrawable(null)
+                        }
                     }
-                    catch (e: Exception) {
+                    else {
                         cover.setImageDrawable(null)
                     }
-
-//                    upInfo!!.coverImageUrl?.let {
-//                        Log.d("picasso", it)
-//                        Picasso.get().load(it).into(cover)
-//                    }
-//                    upInfo.faceImageUrl?.let {
-//                        Picasso.get().load(it).transform(RoundImageTransform()).into(face)
-//                        Picasso.get().load(it).transform(RoundImageTransform()).into(shadow)
-//                    }
                     if (upInfo?.uname != null) {
                         uname.text = upInfo.uname
                         uname.setBackgroundColor(Color.TRANSPARENT)
@@ -293,6 +290,7 @@ class MainActivity : AppCompatActivity() {
                         uname.text = ""
                         uname.setBackgroundColor(Color.BLACK)
                     }
+
                     if (upInfo?.title != null) {
                         title.text = upInfo.title
                         title.setBackgroundColor(Color.TRANSPARENT)
@@ -313,8 +311,8 @@ class MainActivity : AppCompatActivity() {
 
                 return view
             }
-
         }
+
         uplistview.adapter = uplistviewAdapter
 
         // 取消拖拽按钮
