@@ -31,7 +31,13 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.bumptech.glide.Glide
 import com.google.gson.Gson
@@ -59,6 +65,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
+import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
 import java.util.Timer
@@ -66,6 +73,7 @@ import java.util.TimerTask
 import java.util.zip.InflaterInputStream
 
 
+@UnstableApi
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
 
@@ -73,6 +81,31 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     val myHandler = Handler(Looper.getMainLooper())
     var host = "broadcastlv.chat.bilibili.com"
     var token = ""
+
+    val transferred = ArrayDeque<Long>()
+    var totalbytes = 0L
+    val transferListener = object : TransferListener {
+        override fun onTransferInitializing(
+                source: DataSource, dataSpec: DataSpec, isNetwork: Boolean
+                                           ) {
+        }
+
+        override fun onTransferStart(
+                source: DataSource, dataSpec: DataSpec, isNetwork: Boolean
+                                    ) {
+        }
+
+        override fun onBytesTransferred(
+                source: DataSource, dataSpec: DataSpec, isNetwork: Boolean, bytesTransferred: Int
+                                       ) {
+            totalbytes += bytesTransferred.toLong()
+        }
+
+        override fun onTransferEnd(
+                source: DataSource, dataSpec: DataSpec, isNetwork: Boolean
+                                  ) {
+        }
+    }
 
     // 设置窗口序号#
     var playerId: Int = playerId
@@ -148,6 +181,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var shadowView: View
     var shadowFaceImg: ImageView
     var shadowTextView: TextView
+    var speedTextView: TextView
 
     var hideControlTimer: Timer? = null
 
@@ -321,6 +355,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         shadowView = findViewById(R.id.shadow_view)
         shadowFaceImg = findViewById(R.id.shadow_imageview)
         shadowTextView = findViewById(R.id.shadow_textview)
+        speedTextView = findViewById(R.id.speed_textview)
 
         playerNameBtn.text = "#${playerId + 1}: 空"
         shadowTextView.text = "#${playerId + 1}"
@@ -692,6 +727,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         player = null
         socket = null
         socketTimer = null
+
+        myHandler.removeCallbacksAndMessages(null)
+        totalbytes = 0L
+        transferred.clear()
+        speedTextView.text = "0 KB/s"
     }
 
     private fun getBasicinfo() {
@@ -845,9 +885,19 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     catch (e: Exception) {
                         Log.d("Exception", "URL parsing error: $e")
                     }
+                    val dataSourceFactory =
+                            DefaultDataSource.Factory(context).setTransferListener(transferListener)
+                    val mediaSourceFactory =
+                            DefaultMediaSourceFactory(context).setDataSourceFactory(
+                                    dataSourceFactory
+                                                                                   )
+
+
                     myHandler.post {
                         addMsg("[系统] 成功获得播放链接，当前画质：${ql}，格式：${format}")
-                        player = ExoPlayer.Builder(context).build()
+                        player =
+                                ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory)
+                                    .build()
 //                            player!!.addListener(object : Player.EventListener{
 //                                override fun onEvents(player: Player, events: Player.Events) {
 //                                    super.onEvents(player, events)
@@ -866,6 +916,21 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         player!!.playWhenReady = true
                         player!!.prepare()
                     }
+
+                    myHandler.postDelayed(object : Runnable {
+                        override fun run() {
+                            if (transferred.size >= 5) {
+                                transferred.removeFirst() // 移除最早加入的数字
+                            }
+                            transferred.addLast(totalbytes) // 添加新数字
+                            var bytesDiff = (transferred.last - transferred.first) / 1024.0
+                            if (transferred.size > 1) {
+                                bytesDiff /= transferred.size - 1
+                            }
+                            speedTextView.text = String.format("%.2f KB/s", bytesDiff)
+                            myHandler.postDelayed(this, 1000) // 每秒更新一次
+                        }
+                    }, 1000)
 
                     if (!isRecording) {
                         // 刷新播放器的函数
