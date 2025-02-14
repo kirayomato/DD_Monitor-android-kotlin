@@ -20,12 +20,14 @@ import android.content.Intent
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import android.widget.*
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.media3.common.util.UnstableApi
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
@@ -150,15 +152,15 @@ class MainActivity : AppCompatActivity() {
                     Log.d("clipboard", clip.itemCount.toString())
                     if (clip.itemCount == 0) return@post
                     clip.getItemAt(0)?.let { item ->
-                        if (item.text == null) return@post
+                        if (item.text.isNullOrBlank()) return@post
                         val clipboard = item.text.toString()
                         if (clipboard == lastClipboard) {
                             return@post
                         }
                         Log.d("clipboard", clipboard)
                         lastClipboard = clipboard
-//                        addFromUrl(clipboard)
-                        addFromShareClip(clipboard)
+
+                        addRoomFromText(clipboard, true)
                         // 删除剪贴板避免重复提醒
                         it.setPrimaryClip(ClipData.newPlainText("", ""))
                     }
@@ -169,6 +171,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -578,11 +581,11 @@ class MainActivity : AppCompatActivity() {
         // 添加按钮
         findViewById<Button>(R.id.add_up_btn).setOnClickListener {
             val et = EditText(this)
-            et.inputType = InputType.TYPE_CLASS_NUMBER
-            AlertDialog.Builder(this).setTitle("添加直播间id")
-                .setMessage("提示：输入完成可按回车键/换行键，此窗口不关闭，可继续输入添加。")
-                .setView(et).setPositiveButton("确定") { _, _ ->
-                    addRoomId(et.text.toString())
+            et.inputType = InputType.TYPE_CLASS_TEXT
+            AlertDialog.Builder(this).setTitle("添加直播间号或链接")
+                .setMessage("提示：输入完成可按回车键，此窗口不关闭，可继续输入添加。").setView(et)
+                .setPositiveButton("确定") { _, _ ->
+                    addRoomFromText(et.text.toString())
                 }.setNegativeButton("取消", null).show()
 //            et.requestFocus()
 
@@ -590,7 +593,7 @@ class MainActivity : AppCompatActivity() {
             et.setOnEditorActionListener { textView, i, keyEvent ->
                 Log.d("imeaction", i.toString())
                 if (i == EditorInfo.IME_ACTION_DONE) {
-                    addRoomId(et.text.toString(), true)
+                    addRoomFromText(et.text.toString())
                     et.text.clear()
                 }
                 return@setOnEditorActionListener true
@@ -628,6 +631,7 @@ class MainActivity : AppCompatActivity() {
         }, 30000, 30000)
     }
 
+    @OptIn(UnstableApi::class)
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         Log.d("orientation", "onConfigurationChanged")
@@ -639,22 +643,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun addRoomId(id: String, promt: Boolean = false) {
+    fun addRoomId(id: String) {
 //        val roomId = id.toIntOrNull()
         if (!Pattern.compile("\\d+").matcher(id).matches()) {
-            Toast.makeText(this, "无效的id $id", Toast.LENGTH_SHORT).show()
+            runOnUiThread {
+                Toast.makeText(this, "无效的id $id", Toast.LENGTH_SHORT).show()
+            }
             return
         }
 
         if (uplist.contains(id)) {
-            Toast.makeText(this, "已存在 $id", Toast.LENGTH_SHORT).show()
+            runOnUiThread {
+                Toast.makeText(this, "已存在 ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT)
+                    .show()
+            }
             return
         }
 
         loadUpInfo(id) { realRoomId ->
             if (uplist.contains(realRoomId)) {
                 runOnUiThread {
-                    Toast.makeText(this, "已存在 $id", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "已存在 ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT)
+                        .show()
                 }
                 return@loadUpInfo
             }
@@ -666,9 +676,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 uplistviewAdapter.notifyDataSetInvalidated()
 
-                if (promt) {
-                    Toast.makeText(this, "已添加id $id", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this, "已添加id ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
     }
@@ -679,7 +688,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val res = IntentIntegrator.parseActivityResult(resultCode, data).contents
                 Log.d("scanqr", res)
-                addFromUrl(res)
+                addRoomFromText(res)
             }
             catch (e: Exception) {
                 Log.d("Exception", "Failed: $e")
@@ -688,110 +697,81 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun addRoomid(roomId: String) {
-        if (uplist.contains(roomId)) {
-            runOnUiThread {
-                Toast.makeText(
-                        this@MainActivity, "${roomId}已存在", Toast.LENGTH_SHORT
-                              ).show()
-            }
-            return
-        }
-        loadUpInfo(roomId) { realRoomId ->
-            runOnUiThread {
-                if (uplist.contains(realRoomId)) {
-                    Toast.makeText(
-                            this@MainActivity, "${realRoomId}已存在", Toast.LENGTH_SHORT
-                                  ).show()
-                    return@runOnUiThread
-                }
-
-                uplist.add(0, realRoomId)
-                getSharedPreferences("sp", MODE_PRIVATE).edit {
-                    this.putString(
-                            "uplist", uplist.joinToString(" ")
-                                  ).apply()
-                }
-//              uplistview.invalidateViews()
-                uplistviewAdapter.notifyDataSetInvalidated()
-                drawer.openDrawer(drawerContent)
-//              for (up in uplist) {
-//                  loadUpInfo(up)
-//              }
-                loadManyUpInfos()
-            }
-        }
-    }
-
-    fun addFromUrl(urlStr: String): Boolean {
-        try {
-            // 检查剪贴板是url格式，而且是b站直播链接
-            Log.d("clipboard", urlStr)
+    fun addRoomFromURL(url: URL) {
+        if (url.host == "live.bilibili.com") {
             try {
                 """live\.bilibili\.com\/(?:[^/]+/)*?(\d+)""".toRegex()
-                    .find(urlStr)?.groupValues?.get(1)?.let {
-                        addRoomid(it);
-                        return true
-                    }
+                    .find(url.toString())!!.groupValues[1].let {
+                    addRoomId(it)
+                }
             }
             catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
                     Toast.makeText(
-                            this@MainActivity, "链接解析失败", Toast.LENGTH_SHORT
+                            this@MainActivity, "链接解析失败${e}", Toast.LENGTH_SHORT
                                   ).show()
                 }
             }
         }
-        catch (e: Exception) {
-            Log.d("Exception", "Failed: $e")
+        else if (listOf("b23.tv", "bili2233.cn").contains(url.host)) {
+            OkHttpClient().newCall(
+                    Request.Builder().url(url.toString()).headers(headers).build()
+                                  ).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        """"room_id":(\d+)""".toRegex()
+                            .find(response.body!!.string())!!.groupValues[1].let {
+                            addRoomId(it)
+                        }
+                    }
+                    catch (e: Exception) {
+                        e.printStackTrace()
+                        runOnUiThread {
+                            Toast.makeText(
+                                    this@MainActivity, "链接解析失败${e}", Toast.LENGTH_SHORT
+                                          ).show()
+                        }
+                    }
+                }
+            })
         }
-        return false
+        else {
+            runOnUiThread {
+                Toast.makeText(
+                        this@MainActivity, "链接无法识别", Toast.LENGTH_SHORT
+                              ).show()
+            }
+        }
     }
 
-    fun addFromShareClip(clip: String) {
+    fun addRoomFromText(clip: String, fromClip: Boolean = false) {
         try {
-            """(https?://\S+)""".toRegex().find(clip)?.groupValues?.get(1)?.let { it ->
-                val url = URL(it)
-                if (listOf("b23.tv", "bili2233.cn", "live.bilibili.com").contains(url.host)) {
-                    AlertDialog.Builder(this).setTitle("尝试解析解析剪贴板的分享链接？")
-                        .setMessage(clip).setPositiveButton("是") { _, _ ->
-                            if (!addFromUrl(it)) {
-                                OkHttpClient().newCall(
-                                        Request.Builder().url(it).headers(headers).build()
-                                                      ).enqueue(object : Callback {
-                                    override fun onFailure(call: Call, e: IOException) {
-                                        runOnUiThread {
-                                            Toast.makeText(
-                                                    this@MainActivity,
-                                                    "短链接解析失败",
-                                                    Toast.LENGTH_SHORT
-                                                          ).show()
-                                        }
-                                    }
-
-                                    override fun onResponse(call: Call, response: Response) {
-                                        try {
-                                            val roomId = """"room_id":(\d+)""".toRegex()
-                                                .find(response.body!!.string())!!.groupValues[1]
-                                            addRoomId(roomId)
-                                        }
-                                        catch (e: Exception) {
-                                            e.printStackTrace()
-                                            runOnUiThread {
-                                                Toast.makeText(
-                                                        this@MainActivity,
-                                                        "短链接解析失败",
-                                                        Toast.LENGTH_SHORT
-                                                              ).show()
-                                            }
-                                        }
-                                    }
-
-                                })
-                            }
-
-                        }.setNegativeButton("否", null).show()
+            if (clip.all { it.isDigit() }) {
+                if (fromClip) {
+                    AlertDialog.Builder(this).setTitle("尝试添加剪贴板的直播间号？").setMessage(clip)
+                        .setPositiveButton("确认") { _, _ -> addRoomId(clip) } // 确认后执行逻辑
+                        .setNegativeButton("取消", null).show()
+                }
+                else {
+                    addRoomId(clip)
+                }
+            }
+            else {
+                """(https?://\S+)""".toRegex().find(clip)?.groupValues?.get(1)?.let { it ->
+                    val url = URL(it)
+                    if (fromClip) {
+                        AlertDialog.Builder(this).setTitle("尝试添加剪贴板的链接？").setMessage(it)
+                            .setPositiveButton("确认") { _, _ -> addRoomFromURL(url) } // 确认后执行逻辑
+                            .setNegativeButton("取消", null).show()
+                    }
+                    else {
+                        addRoomFromURL(url)
+                    }
                 }
             }
         }
@@ -910,6 +890,7 @@ class MainActivity : AppCompatActivity() {
 
                             }
 
+                            @OptIn(UnstableApi::class)
                             override fun onResponse(call: Call, response: Response) {
                                 response.body?.let { it1 ->
                                     try {
