@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
 
 class DDLayout(context: Context?) : LinearLayout(context) {
-    var layoutId : Int = 4
+    var layoutId: Int = 4
         set(value) {
             field = value
             reloadLayout()
@@ -27,7 +27,10 @@ class DDLayout(context: Context?) : LinearLayout(context) {
     var layoutBeforeFullScreen: Int? = null
 
     init {
-        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+                                             )
 //        this.layoutId = 2
 
 
@@ -41,15 +44,11 @@ class DDLayout(context: Context?) : LinearLayout(context) {
             p.onDragAndDropListener = { drag, drop ->
                 Log.d("drop", "drag drop $drag $drop")
                 val dragViewId = context.resources.getIdentifier(
-                    "dd_layout_${drag+1}",
-                    "id",
-                    context.packageName
-                )
+                        "dd_layout_${drag + 1}", "id", context.packageName
+                                                                )
                 val dropViewId = context.resources.getIdentifier(
-                    "dd_layout_${drop+1}",
-                    "id",
-                    context.packageName
-                )
+                        "dd_layout_${drop + 1}", "id", context.packageName
+                                                                )
                 val dragView = stackview?.findViewById<LinearLayout>(dragViewId)
                 val dropView = stackview?.findViewById<LinearLayout>(dropViewId)
                 (players[drop].parent as ViewGroup?)?.removeView(players[drop])
@@ -70,11 +69,11 @@ class DDLayout(context: Context?) : LinearLayout(context) {
                 }
 
                 // 交换音量设置
-                val volume2 = players[drop].playerOptions.volume
-                players[drop].playerOptions.volume = players[drag].playerOptions.volume
-                players[drop].notifyPlayerOptionsChange()
-                players[drag].playerOptions.volume = volume2
-                players[drag].notifyPlayerOptionsChange()
+//                val volume2 = players[drop].playerOptions.volume
+//                players[drop].playerOptions.volume = players[drag].playerOptions.volume
+//                players[drop].notifyPlayerOptionsChange()
+//                players[drag].playerOptions.volume = volume2
+//                players[drag].notifyPlayerOptionsChange()
 
                 context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE).edit {
                     this.putString("roomId$drop", players[drop].roomId).apply()
@@ -89,7 +88,8 @@ class DDLayout(context: Context?) : LinearLayout(context) {
                     fullScreenPlayerId = it
                     layoutBeforeFullScreen = layoutId
                     layoutId = 1
-                }else{
+                }
+                else {
                     val target = players[fullScreenPlayerId!!]
                     players[fullScreenPlayerId!!] = players[0]
                     players[0] = target
@@ -112,9 +112,10 @@ class DDLayout(context: Context?) : LinearLayout(context) {
 
 //        reloadLayout()
 
-        context?.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)?.getInt("layout", 4)?.let {
-            this.layoutId = it
-        }
+        context?.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)?.getInt("layout", 4)
+            ?.let {
+                this.layoutId = it
+            }
     }
 
     var stackview: View? = null
@@ -126,17 +127,25 @@ class DDLayout(context: Context?) : LinearLayout(context) {
         }
 
         Log.d("ffffff", "dd_layout_$layoutId")
-        val resId = context.resources.getIdentifier("dd_layout_$layoutId", "layout", context.packageName)
+        val resId = context.resources.getIdentifier(
+                "dd_layout_$layoutId",
+                "layout",
+                context.packageName
+                                                   )
         stackview = inflate(context, resId, null)
-        stackview?.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        stackview?.layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+                                                        )
         addView(stackview)
 
         layoutPlayerCount = 0
 
         for (i in 1..9) {
-            val layoutId = context.resources.getIdentifier("dd_layout_$i", "id", context.packageName)
+            val layoutId =
+                    context.resources.getIdentifier("dd_layout_$i", "id", context.packageName)
             val v = stackview?.findViewById<LinearLayout>(layoutId)
-            val p = players[i-1]
+            val p = players[i - 1]
             (p.parent as ViewGroup?)?.removeView(p)
             v?.addView(p)
 
@@ -145,7 +154,8 @@ class DDLayout(context: Context?) : LinearLayout(context) {
 //                    p.roomId = p.roomId
 //                }else
                 if (p.roomId == null) {
-                    p.roomId = context?.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)?.getString("roomId${p.playerId}", null)
+                    p.roomId = context?.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)
+                        ?.getString("roomId${p.playerId}", null)
                 }
 
                 post {
@@ -153,7 +163,8 @@ class DDLayout(context: Context?) : LinearLayout(context) {
                 }
 
                 layoutPlayerCount += 1
-            }else{
+            }
+            else {
                 p.roomId = null
             }
         }

@@ -675,9 +675,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
      */
     var roomId: String? = null
         set(value) {
-            // 初始化播放器相关、弹幕socket相关的对象
-            initPlayer()
-
             playerNameBtn.text = "#${playerId + 1}: 空"
             shadowTextView.text = "#${playerId + 1}"
 
@@ -690,9 +687,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 interpreterViewAdapter.notifyDataSetInvalidated()
 
                 isRecording = false
+                if (player?.isPlaying == null || player?.isPlaying == false) {
+                    playerOptions.volume = 1f
+                }
             }
-
             field = value
+            // 初始化播放器相关、弹幕socket相关的对象
+            initPlayer()
 
             recordingView.visibility = GONE
             recordingTimer?.cancel()
@@ -938,12 +939,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         myHandler.post {
                             player!!.setMediaItem(MediaItem.fromUri(url))
 
-                            player!!.addListener(object : Player.Listener {
-                                override fun onPlayerError(error: PlaybackException) {
-                                    super.onPlayerError(error)
-                                    // 在出现错误时自动刷新播放器
-                                    refreshPlayer("ERROR:${error}")
-                                }
+//                            player!!.addListener(object : Player.Listener {
+//                                override fun onPlayerError(error: PlaybackException) {
+//                                    super.onPlayerError(error)
+//                                    // 在出现错误时自动刷新播放器
+//                                    refreshPlayer("ERROR:${error}")
+//                                }
 
 //                                override fun onPlaybackStateChanged(state: Int) {
 //                                    super.onPlaybackStateChanged(state)
@@ -954,7 +955,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                                        refreshPlayer(msg)
 //                                    }
 //                                }
-                            })
+//                            })
 
 
 //                                val factory = DefaultHttpDataSource.Factory()
