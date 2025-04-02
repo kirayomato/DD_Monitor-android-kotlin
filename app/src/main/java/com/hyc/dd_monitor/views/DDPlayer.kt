@@ -743,16 +743,24 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.d("Exception", "Request failed: $e")
+                myHandler.post {
+                    addMsg("[系统]获取用户信息失败，${e}")
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
                     Log.d("Exception", "Request failed with code: ${response.code}")
+                    myHandler.post {
+                        addMsg("[系统]获取用户信息失败，Request failed with code: ${response.code}")
+                    }
                     return
                 }
                 response.body?.let {
                     try {
                         val jo = JSONObject(it.string())
+                        val code = jo.getInt("code")
+                        require(code == 0) { "Return Code Error:$code" }
                         val data = jo.getJSONObject("data")
                         val roomInfo = data.getJSONObject("room_info")
                         val anchorInfo =
@@ -786,6 +794,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     catch (e: Exception) {
                         Log.d("Exception", "Request failed: $e")
+                        myHandler.post {
+                            addMsg("[系统]获取用户信息失败，${e}")
+                        }
                     }
                 }
             }
@@ -800,11 +811,17 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.d("Exception", "Request failed: $e")
+                myHandler.post {
+                    addMsg("[系统]连接弹幕失败，${e}")
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
                     Log.d("Exception", "Request failed with code: ${response.code}")
+                    myHandler.post {
+                        addMsg("[系统]连接弹幕失败，Request failed with code: ${response.code}")
+                    }
                     return
                 }
                 response.body?.let {
@@ -812,6 +829,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         val bodyString = it.string()
                         Log.d("loadinfo", bodyString)
                         val jo = JSONObject(bodyString)
+                        val code = jo.getInt("code")
+                        require(code == 0) { "Return Code Error:$code" }
                         val data = jo.getJSONObject("data")
                         token = data.getString("token")
                         host = data.getJSONArray("host_list").getJSONObject(0).getString("host")
@@ -821,6 +840,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     catch (e: Exception) {
                         Log.d("Exception", "Parsing error: $e")
+                        myHandler.post {
+                            addMsg("[系统]连接弹幕失败，${e}")
+                        }
                     }
                 } ?: run {
                     Log.d("Exception", "Response body is null")
@@ -851,6 +873,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
                     Log.d("Exception", "Request failed with code: ${response.code}")
+                    myHandler.post {
+                        addMsg("[系统] 获取播放链接失败，Request failed with code: ${response.code}")
+                    }
                     return
                 }
                 response.body?.let { it2 ->
@@ -861,6 +886,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     catch (e: Exception) {
                         Log.d("Exception", "Request failed: $e")
+                        myHandler.post {
+                            addMsg("[系统] 获取播放链接失败，${e}")
+                        }
                     }
                     if (url.isEmpty()) return
 

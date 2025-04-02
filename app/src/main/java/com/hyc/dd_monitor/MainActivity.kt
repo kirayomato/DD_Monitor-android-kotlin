@@ -53,9 +53,6 @@ var headers = Headers.Builder().add(
     .add(
             "sec-ch-ua",
             "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
-        ).add("sec-ch-ua-mobile", "?0").add("sec-ch-ua-platform", "\"Windows\"")
-    .add("sec-fetch-dest", "document").add("sec-fetch-mode", "navigate")
-    .add("sec-fetch-site", "none").add("sec-fetch-user", "?1").add(
             "user-agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                                                                   ).build()
@@ -723,6 +720,17 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        Log.d("Exception", "Request failed with code: ${response.code}")
+                        runOnUiThread {
+                            Toast.makeText(
+                                    this@MainActivity,
+                                    "Request failed with code: ${response.code}",
+                                    Toast.LENGTH_SHORT
+                                          ).show()
+                        }
+                        return
+                    }
                     try {
                         """"room_id":(\d+)""".toRegex()
                             .find(response.body!!.string())!!.groupValues[1].let {
@@ -792,10 +800,23 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    runOnUiThread {
+                        Toast.makeText(
+                                this@MainActivity,
+                                "Request failed with code: ${response.code}",
+                                Toast.LENGTH_SHORT
+                                      ).show()
+                    }
+                    return
+                }
                 Log.d("loadinfo", roomId)
                 response.body?.let {
                     try {
                         val jo = JSONObject(it.string())
+                        val code = jo.getInt("code")
+                        require(code == 0) { "Return Code Error:$code" }
                         val data = jo.getJSONObject("data")
                         val roomInfo = data.getJSONObject("room_info")
                         val anchorInfo =
@@ -859,13 +880,30 @@ class MainActivity : AppCompatActivity() {
                     .method("POST", body).headers(headers).build()
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-
+                runOnUiThread {
+                    Toast.makeText(
+                            this@MainActivity, "查询信息失败 $e", Toast.LENGTH_SHORT
+                                  ).show()
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.d("Exception", "Request failed with code: ${response.code}")
+                    runOnUiThread {
+                        Toast.makeText(
+                                this@MainActivity,
+                                "Request failed with code: ${response.code}",
+                                Toast.LENGTH_SHORT
+                                      ).show()
+                    }
+                    return
+                }
                 response.body?.let {
                     try {
                         val jo = JSONObject(it.string())
+                        val code = jo.getInt("code")
+                        require(code == 0) { "Return Code Error:$code" }
                         val res = jo.getJSONObject("data")
 
 
@@ -876,6 +914,13 @@ class MainActivity : AppCompatActivity() {
                             }
                             catch (e: Exception) {
                                 Log.d("Exception", "Request Failed: $e")
+                                runOnUiThread {
+                                    Toast.makeText(
+                                            this@MainActivity,
+                                            "Request Failed: $e",
+                                            Toast.LENGTH_SHORT
+                                                  ).show()
+                                }
                             }
                         }
                         Log.d("loadinfo", uids.joinToString(","))
@@ -887,14 +932,34 @@ class MainActivity : AppCompatActivity() {
                                     .method("POST", body1).headers(headers).build()
                                               ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
-
+                                Log.d("Exception", "加载信息失败: $e")
+                                runOnUiThread {
+                                    Toast.makeText(
+                                            this@MainActivity,
+                                            "加载信息失败: $e",
+                                            Toast.LENGTH_SHORT
+                                                  ).show()
+                                }
                             }
 
                             @OptIn(UnstableApi::class)
                             override fun onResponse(call: Call, response: Response) {
+                                if (!response.isSuccessful) {
+                                    Log.d("Exception", "Request failed with code: ${response.code}")
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                                this@MainActivity,
+                                                "Request failed with code: ${response.code}",
+                                                Toast.LENGTH_SHORT
+                                                      ).show()
+                                    }
+                                    return
+                                }
                                 response.body?.let { it1 ->
                                     try {
                                         val jo1 = JSONObject(it1.string())
+                                        val code1 = jo1.getInt("code")
+                                        require(code1 == 0) { "Return Code Error:$code1" }
 //                                        Log.d("loadinfo", jo1.toString())
                                         val res1 = jo1.getJSONObject("data")
                                         val reportLiveStartingList = mutableListOf<String>()
@@ -934,6 +999,13 @@ class MainActivity : AppCompatActivity() {
                                             }
                                             catch (e: Exception) {
                                                 Log.d("Exception", "Request Failed: $e")
+                                                runOnUiThread {
+                                                    Toast.makeText(
+                                                            this@MainActivity,
+                                                            "Request Failed: $e",
+                                                            Toast.LENGTH_SHORT
+                                                                  ).show()
+                                                }
                                             }
 
                                             if (realRoomId != null) upinfos[realRoomId] = upInfo
@@ -973,6 +1045,13 @@ class MainActivity : AppCompatActivity() {
                                     }
                                     catch (e: Exception) {
                                         Log.d("Exception", "Request Failed: $e")
+                                        runOnUiThread {
+                                            Toast.makeText(
+                                                    this@MainActivity,
+                                                    "查询信息失败 $e",
+                                                    Toast.LENGTH_SHORT
+                                                          ).show()
+                                        }
                                     }
                                 }
 
@@ -984,9 +1063,11 @@ class MainActivity : AppCompatActivity() {
                     }
                     catch (e: Exception) {
                         e.printStackTrace()
-//                        handler.post {
-//                            Toast.makeText(context, "查询uid失败", Toast.LENGTH_SHORT).show()
-//                        }
+                        runOnUiThread {
+                            Toast.makeText(
+                                    this@MainActivity, "查询信息失败 $e", Toast.LENGTH_SHORT
+                                          ).show()
+                        }
                     }
                 }
             }
