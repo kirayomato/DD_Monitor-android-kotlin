@@ -53,9 +53,14 @@ var headers = Headers.Builder().add(
     .add(
             "sec-ch-ua",
             "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\""
+        ).add("sec-ch-ua-mobile", "?0").add("sec-ch-ua-platform", "\"Windows\"")
+    .add("sec-fetch-dest", "document").add("sec-fetch-mode", "navigate")
+    .add("sec-fetch-site", "none").add("sec-fetch-user", "?1").add(
             "user-agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                                                                  ).build()
+    .build()
+
+lateinit var upinfos: HashMap<String, UPInfo>
 
 class MyForegroundService : Service() {
 
@@ -105,8 +110,6 @@ class MainActivity : AppCompatActivity() {
     lateinit var ddLayout: DDLayout
 
     lateinit var uplist: MutableList<String>
-
-    lateinit var upinfos: HashMap<String, UPInfo>
 
     lateinit var uplistview: ListView
     lateinit var uplistviewAdapter: BaseAdapter
@@ -656,26 +659,24 @@ class MainActivity : AppCompatActivity() {
             }
             return
         }
+        uplist.add(0, id)
+        loadManyUpInfos()
+//        loadUpInfo(id) { realRoomId ->
+//            if (uplist.contains(realRoomId)) {
+//                runOnUiThread {
+//                    Toast.makeText(this, "已存在 ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT)
+//                        .show()
+//                }
+//                return@loadUpInfo
+//            }
 
-        loadUpInfo(id) { realRoomId ->
-            if (uplist.contains(realRoomId)) {
-                runOnUiThread {
-                    Toast.makeText(this, "已存在 ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT)
-                        .show()
-                }
-                return@loadUpInfo
+        runOnUiThread {
+            getSharedPreferences("sp", MODE_PRIVATE).edit {
+                this.putString("uplist", uplist.joinToString(" ")).apply()
             }
+            uplistviewAdapter.notifyDataSetInvalidated()
 
-            runOnUiThread {
-                uplist.add(0, realRoomId)
-                getSharedPreferences("sp", MODE_PRIVATE).edit {
-                    this.putString("uplist", uplist.joinToString(" ")).apply()
-                }
-                uplistviewAdapter.notifyDataSetInvalidated()
-
-                Toast.makeText(this, "已添加id ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT)
-                    .show()
-            }
+            Toast.makeText(this, "已添加id ${upinfos[id]?.uname ?: id}", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -29,7 +29,6 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
@@ -71,7 +70,7 @@ import java.util.Locale
 import java.util.Timer
 import java.util.TimerTask
 import java.util.zip.InflaterInputStream
-
+import com.hyc.dd_monitor.upinfos
 
 @UnstableApi
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
@@ -199,7 +198,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
     init {
         liveHeaders["connection"] = "Upgrade"
-        liveHeaders["accept-encoding"] = "gzip, deflate, br, zstd"
 
         layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
@@ -704,7 +702,19 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 isRecording = false
                 return
             }
-
+            try {
+                val upInfo = upinfos.get(roomId)
+                val liveStatus = if (upInfo!!.isLive) "" else "(未开播)"
+                myHandler.post {
+                    playerNameBtn.text = "#${playerId + 1}: ${liveStatus}${upInfo.uname}"
+                    shadowTextView.text = "#${playerId + 1}"
+                }
+                if (!upInfo.isLive) return
+            }
+            catch (e: Exception) {
+                field = null
+                return
+            }
             // 到这了就表示不为空了，开始加载
             playerNameBtn.text = "#${playerId + 1}: 加载中"
 
@@ -713,7 +723,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             checkAndToastCellular()
 
             // 加载基础信息
-            getBasicinfo()
+//            getBasicinfo()
+            connectVideo()
+            // 连接弹幕socket
+            getDanmuInfo()
         }
 
     fun initPlayer() {
@@ -807,7 +820,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         OkHttpClient().newCall(
                 Request.Builder()
                     .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${roomId}")
-                    .headers(headers).build()
+                    .headers(liveHeaders.build()).build()
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.d("Exception", "Request failed: $e")
@@ -881,8 +894,16 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 response.body?.let { it2 ->
                     var url = ""
                     try {
-                        url = JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
-                            .getJSONObject(0).getString("url")
+                        var urlList =
+                                JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
+                        for (i in 0 until urlList.length()) {
+                            val tURL = urlList.getJSONObject(i).getString("url")
+                            if ("gotcha" in tURL.substringBefore('?') || i == urlList.length() - 1) {
+                                url = tURL
+                                break
+                            }
+                        }
+
                     }
                     catch (e: Exception) {
                         Log.d("Exception", "Request failed: $e")
@@ -923,7 +944,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
 
                     myHandler.post {
-                        addMsg("[系统] 成功获得播放链接，当前画质：${ql}，格式：${format}")
+                        addMsg("[系统] 成功获得播放链接:${url.substringBefore('?')}，当前画质：${ql}，格式：${format}")
                         player =
                                 ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory)
                                     .build()
