@@ -5,10 +5,13 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
+import androidx.media3.common.util.UnstableApi
 
-class DDLayout(context: Context?) : LinearLayout(context) {
+@UnstableApi
+class DDLayout @OptIn(UnstableApi::class) constructor(context: Context?) : LinearLayout(context) {
     var layoutId: Int = 4
         set(value) {
             field = value
@@ -28,8 +31,7 @@ class DDLayout(context: Context?) : LinearLayout(context) {
 
     init {
         layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
                                              )
 //        this.layoutId = 2
 
@@ -121,6 +123,7 @@ class DDLayout(context: Context?) : LinearLayout(context) {
     var stackview: View? = null
 
     // 重新刷新布局
+    @OptIn(UnstableApi::class)
     fun reloadLayout() {
         if (stackview != null) {
             removeView(stackview)
@@ -128,14 +131,11 @@ class DDLayout(context: Context?) : LinearLayout(context) {
 
         Log.d("ffffff", "dd_layout_$layoutId")
         val resId = context.resources.getIdentifier(
-                "dd_layout_$layoutId",
-                "layout",
-                context.packageName
+                "dd_layout_$layoutId", "layout", context.packageName
                                                    )
         stackview = inflate(context, resId, null)
         stackview?.layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
                                                         )
         addView(stackview)
 
