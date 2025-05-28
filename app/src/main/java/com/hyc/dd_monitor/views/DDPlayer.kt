@@ -1,5 +1,6 @@
 package com.hyc.dd_monitor.views
 
+import WbiSigner.encWbi
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Context
@@ -71,6 +72,10 @@ import java.util.Timer
 import java.util.TimerTask
 import java.util.zip.InflaterInputStream
 import com.hyc.dd_monitor.upinfos
+import com.hyc.dd_monitor.img_key
+import com.hyc.dd_monitor.sub_key
+import android.content.ClipboardManager
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @UnstableApi
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
@@ -272,7 +277,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             val danmu = danmuList[i]
             val pop = PopupMenu(context, view)
             pop.menuInflater.inflate(R.menu.danmu_clear, pop.menu)
-            pop.setOnMenuItemClickListener {
+            pop.setOnMenuItemClickListener { it ->
                 if (it.itemId == R.id.danmu_clear) {
                     danmuList.remove(danmu)
                     danmuListViewAdapter.notifyDataSetInvalidated()
@@ -280,6 +285,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 else if (it.itemId == R.id.danmu_clear_all) {
                     danmuList.removeAll(danmuList)
                     danmuListViewAdapter.notifyDataSetInvalidated()
+                }
+                else if (it.itemId == R.id.danmu_copy) {
+                    context.getSystemService(Context.CLIPBOARD_SERVICE)?.apply {
+                        if (this is ClipboardManager) {
+                            setPrimaryClip(ClipData.newPlainText("label", danmu.first))
+                        }
+                    }
                 }
                 return@setOnMenuItemClickListener true
             }
@@ -344,6 +356,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 else if (it.itemId == R.id.danmu_clear_all) {
                     interpreterList.removeAll(interpreterList)
                     interpreterViewAdapter.notifyDataSetInvalidated()
+                }
+                else if (it.itemId == R.id.danmu_copy) {
+                    context.getSystemService(Context.CLIPBOARD_SERVICE)?.apply {
+                        if (this is ClipboardManager) {
+                            setPrimaryClip(ClipData.newPlainText("label", danmu))
+                        }
+                    }
                 }
                 return@setOnMenuItemClickListener true
             }
