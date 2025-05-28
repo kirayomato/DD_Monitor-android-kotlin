@@ -1,5 +1,6 @@
 package com.hyc.dd_monitor
 
+import WbiSigner.getWbiKeys
 import android.app.Notification
 import android.content.*
 import android.content.pm.ActivityInfo
@@ -27,7 +28,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
+import kotlinx.coroutines.*
 import com.bumptech.glide.Glide
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.Gson
@@ -59,6 +62,9 @@ var headers = Headers.Builder().add(
             "user-agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     .build()
+
+var img_key = ""
+var sub_key = ""
 
 lateinit var upinfos: HashMap<String, UPInfo>
 
@@ -105,6 +111,7 @@ class MyForegroundService : Service() {
     }
 }
 
+@UnstableApi
 class MainActivity : AppCompatActivity() {
 
     lateinit var ddLayout: DDLayout
@@ -136,6 +143,12 @@ class MainActivity : AppCompatActivity() {
     var lastClipboard: String? = null
     override fun onResume() {
         super.onResume()
+        lifecycleScope.launch { // 切换到 IO 线程
+            val wbi = getWbiKeys()
+            img_key = wbi.first
+            sub_key = wbi.second
+        }
+
         Log.d("resume", "onResume")
 
         // 屏幕常亮

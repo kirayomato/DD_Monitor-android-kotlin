@@ -836,10 +836,17 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     }
 
     private fun getDanmuInfo() {
+        val params = mapOf("id" to roomId!!, "type" to "")
+        val signedParams = encWbi(params, img_key, sub_key)
+        val url =
+                "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo".toHttpUrlOrNull()!!
+                    .newBuilder().apply {
+                        signedParams.forEach { (key, value) ->
+                            addQueryParameter(key, value.toString())
+                        }
+                    }.build()
         OkHttpClient().newCall(
-                Request.Builder()
-                    .url("https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id=${roomId}")
-                    .headers(liveHeaders.build()).build()
+                Request.Builder().url(url).headers(liveHeaders.build()).build()
                               ).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.d("Exception", "Request failed: $e")
