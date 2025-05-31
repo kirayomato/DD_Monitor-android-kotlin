@@ -2,13 +2,12 @@
 buildscript {
     ext.kotlin_version = "1.9.24"
     repositories {
-        maven{ url 'https://jitpack.io' }
+        maven { url 'https://jitpack.io' }
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/public' }
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         mavenCentral()
         google()
-        jcenter()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.7.3'
@@ -21,16 +20,15 @@ buildscript {
 
 allprojects {
     repositories {
-        maven{ url 'https://jitpack.io' }
+        maven { url 'https://jitpack.io' }
         maven { url 'https://maven.aliyun.com/repository/google' }
         maven { url 'https://maven.aliyun.com/repository/public' }
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         mavenCentral()
         google()
-        jcenter()
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+tasks.register('clean', Delete) {
+    delete(rootProject.layout.buildDirectory)
 }
