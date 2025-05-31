@@ -836,7 +836,7 @@ class MainActivity : AppCompatActivity() {
                         val anchorInfo =
                                 data.getJSONObject("anchor_info").getJSONObject("base_info")
 
-                        val realRoomId = roomInfo.getInt("room_id").toString()
+                        val realRoomId = roomInfo.getString("room_id")
 
 
                         val upInfo = UPInfo()
@@ -921,10 +921,10 @@ class MainActivity : AppCompatActivity() {
                         val res = jo.getJSONObject("data")
 
 
-                        val uids = mutableListOf<Int>()
+                        val uids = mutableListOf<String>()
                         for (k in res.keys()) {
                             try {
-                                uids.add(res.getJSONObject(k).getInt("uid"))
+                                uids.add(res.getJSONObject(k).getString("uid"))
                             }
                             catch (e: Exception) {
                                 Log.d("Exception", "Request Failed: $e")
@@ -984,7 +984,7 @@ class MainActivity : AppCompatActivity() {
                                             val upInfo = UPInfo()
                                             try {
                                                 val data = res1.getJSONObject(k)
-                                                realRoomId = data.getInt("room_id").toString()
+                                                realRoomId = data.getString("room_id")
 
                                                 upInfo.uname = data.getString("uname")
 
