@@ -708,6 +708,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 if (player?.isPlaying == null || player?.isPlaying == false) {
                     playerOptions.volume = 1f
                 }
+                // 新的id则重置设置
+                playerOptions = PlayerOptions()
+                notifyPlayerOptionsChange()
             }
             field = value
             // 初始化播放器相关、弹幕socket相关的对象
