@@ -75,6 +75,7 @@ import com.hyc.dd_monitor.upinfos
 import com.hyc.dd_monitor.img_key
 import com.hyc.dd_monitor.sub_key
 import android.content.ClipboardManager
+import androidx.media3.common.PlaybackException
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @UnstableApi
@@ -722,7 +723,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 return
             }
             try {
-                val upInfo = upinfos.get(roomId)
+                val upInfo = upinfos[roomId]
                 val liveStatus = if (upInfo!!.isLive) "" else "(未开播)"
                 myHandler.post {
                     playerNameBtn.text = "#${playerId + 1}: ${liveStatus}${upInfo.uname}"
@@ -920,7 +921,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 response.body?.let { it2 ->
                     var url = ""
                     try {
-                        var urlList =
+                        val urlList =
                                 JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
                         for (i in 0 until urlList.length()) {
                             val tURL = urlList.getJSONObject(i).getString("url")
@@ -956,6 +957,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 }
                             }
                             else ql = "原画"
+                            qnBtn.text = ql
                         }
                     }
                     catch (e: Exception) {
@@ -1014,12 +1016,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         myHandler.post {
                             player!!.setMediaItem(MediaItem.fromUri(url))
 
-//                            player!!.addListener(object : Player.Listener {
-//                                override fun onPlayerError(error: PlaybackException) {
-//                                    super.onPlayerError(error)
-//                                    // 在出现错误时自动刷新播放器
-//                                    refreshPlayer("ERROR:${error}")
-//                                }
+                            player!!.addListener(object : Player.Listener {
+                                override fun onPlayerError(error: PlaybackException) {
+                                    super.onPlayerError(error)
+                                    // 在出现错误时自动刷新播放器
+                                    refreshPlayer("ERROR:${error}")
+                                }
+                            })
 
 //                                override fun onPlaybackStateChanged(state: Int) {
 //                                    super.onPlaybackStateChanged(state)
