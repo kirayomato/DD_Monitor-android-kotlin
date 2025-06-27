@@ -61,6 +61,7 @@ var headers = Headers.Builder().add(
     .add("sec-fetch-site", "none").add("sec-fetch-user", "?1").add(
             "user-agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                                                                  )
     .build()
 
 var img_key = ""
@@ -1024,7 +1025,7 @@ class MainActivity : AppCompatActivity() {
 
                                             if (realRoomId != null) upinfos[realRoomId] = upInfo
                                         }
-
+                                        uplist = upinfos.keys.toMutableList()
                                         uplist.sortByDescending { id ->
                                             upinfos[id]?.isLive
                                         }
