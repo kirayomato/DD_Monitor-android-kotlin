@@ -167,14 +167,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 if (isRecording) {
                     isRecording = false
                 }
-                else {
+                else if (qn != realQn) {
                     this.roomId = roomId
                 }
                 playerOptions.qn = value
                 notifyPlayerOptionsChange()
             }
         }
-
+    var realQn = 150
     var playerNameBtn: Button
     var playerView: PlayerView
     var controlBar: LinearLayout
@@ -657,8 +657,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 try {
                     Log.d("playeroptions", "load $it")
                     playerOptions = Gson().fromJson(it, PlayerOptions::class.java)
-                    qn = playerOptions.qn
                     notifyPlayerOptionsChange()
+                    qn = 150
                 }
                 catch (e: java.lang.Exception) {
                     Log.d("Exception", "Failed: $e")
@@ -738,8 +738,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     playerOptions.volume = 1f
                 }
                 // 新的id则重置设置
-                playerOptions = PlayerOptions()
-                notifyPlayerOptionsChange()
+                if (value != null) {
+                    playerOptions = PlayerOptions()
+                    notifyPlayerOptionsChange()
+                    qn = 150
+                }
             }
             field = value
             // 初始化播放器相关、弹幕socket相关的对象
@@ -984,13 +987,36 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             val parts = file[0].split('_')
                             if (parts.size == 4) {
                                 when (parts[3]) {
-                                    "4000" -> ql = "蓝光"
-                                    "2500" -> ql = "超清"
-                                    "1500" -> ql = "高清"
+                                    "4000" -> {
+                                        ql = "蓝光"
+                                        realQn = 400;
+                                        qn = 400;
+                                    }
+
+                                    "2500" -> {
+                                        ql = "超清"
+                                        realQn = 250;
+                                        qn = 250;
+                                    }
+
+                                    "1500" -> {
+                                        ql = "高清"
+                                        realQn = 150;
+                                        qn = 150;
+                                    }
+
+                                    "bluray" -> {
+                                        ql = "二压原画"
+                                        realQn = 10000;
+                                        qn = 10000;
+                                    }
                                 }
                             }
-                            else ql = "原画"
-                            qnBtn.text = ql
+                            else {
+                                ql = "原画"
+                                realQn = 10000;
+                                qn = 10000;
+                            }
                         }
                     }
                     catch (e: Exception) {
