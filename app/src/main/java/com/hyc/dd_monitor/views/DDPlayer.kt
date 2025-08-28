@@ -171,7 +171,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     this.roomId = roomId
                 }
                 playerOptions.qn = value
-                notifyPlayerOptionsChange()
+//                notifyPlayerOptionsChange()
             }
         }
     var realQn = 150
@@ -652,18 +652,18 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         }
 
         // 读取播放器设置
-        context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)
-            .getString("opts${this.playerId}", "")?.let {
-                try {
-                    Log.d("playeroptions", "load $it")
-                    playerOptions = Gson().fromJson(it, PlayerOptions::class.java)
-                    notifyPlayerOptionsChange()
-                    qn = 150
-                }
-                catch (e: java.lang.Exception) {
-                    Log.d("Exception", "Failed: $e")
-                }
-            }
+//        context.getSharedPreferences("sp", AppCompatActivity.MODE_PRIVATE)
+//            .getString("opts${this.playerId}", "")?.let {
+//                try {
+//                    Log.d("playeroptions", "load $it")
+//                    playerOptions = Gson().fromJson(it, PlayerOptions::class.java)
+//                    notifyPlayerOptionsChange()
+//                    qn = 150
+//                }
+//                catch (e: java.lang.Exception) {
+//                    Log.d("Exception", "Failed: $e")
+//                }
+//            }
 
         showControlBar()
     }
@@ -740,8 +740,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 // 新的id则重置设置
                 if (value != null) {
                     playerOptions = PlayerOptions()
-                    notifyPlayerOptionsChange()
                     qn = 150
+                    notifyPlayerOptionsChange()
                 }
             }
             field = value
@@ -1035,18 +1035,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         player =
                                 ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory)
                                     .build()
-//                            player!!.addListener(object : Player.EventListener{
-//                                override fun onEvents(player: Player, events: Player.Events) {
-//                                    super.onEvents(player, events)
-//                                    for (i in 0 until events.size()) {
-//                                        Log.d("exoplayer-event", events[i].toString())
-//                                    }
-//                                }
-//                                override fun onPlayerError(error: ExoPlaybackException) {
-//                                    super.onPlayerError(error)
-//                                    error.printStackTrace()
-//                                }
-//                            })
 
                         playerView.player = player
                         player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
@@ -1075,13 +1063,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         myHandler.post {
                             player!!.setMediaItem(MediaItem.fromUri(url))
 
-                            player!!.addListener(object : Player.Listener {
-                                override fun onPlayerError(error: PlaybackException) {
-                                    super.onPlayerError(error)
-                                    // 在出现错误时自动刷新播放器
-                                    refreshPlayer("ERROR:${error}")
-                                }
-                            })
+//                            player!!.addListener(object : Player.Listener {
+//                                override fun onPlayerError(error: PlaybackException) {
+//                                    super.onPlayerError(error)
+//                                    // 在出现错误时自动刷新播放器
+//                                    refreshPlayer("ERROR:${error}")
+//                                }
+//                            })
 
 //                                override fun onPlaybackStateChanged(state: Int) {
 //                                    super.onPlaybackStateChanged(state)
