@@ -7,6 +7,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.time.Instant
+import kotlin.random.Random
 
 object WbiSigner {
 
@@ -177,5 +179,32 @@ object WbiSigner {
         val headersBuilder = okhttp3.Headers.Builder()
         this.forEach { (key, value) -> headersBuilder.add(key, value) }
         return headersBuilder.build()
+    }
+
+    fun generateLocalId(): String {
+        val chars = "0123456789ABCDEF"
+        val random = Random.Default
+
+        val sb = StringBuilder(46)
+
+        // UUID-like segments
+        for (i in 0 until 8) sb.append(chars[random.nextInt(chars.length)])
+        sb.append('-')
+        for (i in 0 until 4) sb.append(chars[random.nextInt(chars.length)])
+        sb.append('-')
+        for (i in 0 until 4) sb.append(chars[random.nextInt(chars.length)])
+        sb.append('-')
+        for (i in 0 until 4) sb.append(chars[random.nextInt(chars.length)])
+        sb.append('-')
+        for (i in 0 until 12) sb.append(chars[random.nextInt(chars.length)])
+
+        // Time-based suffix
+        val now = Instant.now().toEpochMilli()
+        val timestampPart = (now % 100000).toString().padStart(5, '0')
+
+        sb.append(timestampPart)
+        sb.append("infoc")
+
+        return sb.toString()
     }
 }

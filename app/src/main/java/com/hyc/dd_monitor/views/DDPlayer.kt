@@ -1,6 +1,7 @@
 package com.hyc.dd_monitor.views
 
 import WbiSigner.encWbi
+import WbiSigner.generateLocalId
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Context
@@ -77,39 +78,10 @@ import com.hyc.dd_monitor.sub_key
 import android.content.ClipboardManager
 import androidx.media3.common.PlaybackException
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import kotlin.random.Random
-import java.time.Instant
 
 @UnstableApi
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
-
-    fun generateLocalId(): String {
-        val chars = "0123456789ABCDEF"
-        val random = Random.Default
-
-        val sb = StringBuilder(46)
-
-        // UUID-like segments
-        for (i in 0 until 8) sb.append(chars[random.nextInt(chars.length)])
-        sb.append('-')
-        for (i in 0 until 4) sb.append(chars[random.nextInt(chars.length)])
-        sb.append('-')
-        for (i in 0 until 4) sb.append(chars[random.nextInt(chars.length)])
-        sb.append('-')
-        for (i in 0 until 4) sb.append(chars[random.nextInt(chars.length)])
-        sb.append('-')
-        for (i in 0 until 12) sb.append(chars[random.nextInt(chars.length)])
-
-        // Time-based suffix
-        val now = Instant.now().toEpochMilli()
-        val timestampPart = (now % 100000).toString().padStart(5, '0')
-
-        sb.append(timestampPart)
-        sb.append("infoc")
-
-        return sb.toString()
-    }
 
     val liveHeaders = headers.newBuilder()
     val myHandler = Handler(Looper.getMainLooper())
