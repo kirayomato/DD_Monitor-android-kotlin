@@ -1034,14 +1034,13 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
                         myHandler.post {
                             player!!.setMediaItem(MediaItem.fromUri(url))
-
-//                            player!!.addListener(object : Player.Listener {
-//                                override fun onPlayerError(error: PlaybackException) {
-//                                    super.onPlayerError(error)
-//                                    // 在出现错误时自动刷新播放器
-//                                    refreshPlayer("ERROR:${error}")
-//                                }
-//                            })
+                            player!!.addListener(object : Player.Listener {
+                                override fun onPlayerError(error: PlaybackException) {
+                                    super.onPlayerError(error)
+                                    // 在出现错误时自动刷新播放器
+                                    refreshPlayer("ERROR:${error}")
+                                }
+                            })
 
 //                                override fun onPlaybackStateChanged(state: Int) {
 //                                    super.onPlaybackStateChanged(state)
