@@ -88,6 +88,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
     var host = "broadcastlv.chat.bilibili.com"
     var token = ""
 
+    var playing = false
     val transferred = ArrayDeque<Long>()
     var totalbytes = 0L
     val transferListener = object : TransferListener {
@@ -139,7 +140,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 if (isRecording) {
                     isRecording = false
                 }
-                else if (qn != realQn) {
+                else if (qn != realQn && playing) {
                     this.roomId = roomId
                 }
                 playerOptions.qn = value
@@ -341,7 +342,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 //                    volumeSlider.progress = p0.progress
 //                }
                 playerOptions.volume = p0!!.progress.toFloat() / 100f
-                notifyPlayerOptionsChange()
+                player?.volume = if (isGlobalMuted) 0f else playerOptions.volume
             }
         }
 
@@ -408,7 +409,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         context.startActivity(intent)
 
                         playerOptions.volume = 0f
-                        notifyPlayerOptionsChange()
+                        player?.volume = 0f
                     }
                     catch (_: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW)
@@ -696,8 +697,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         set(value) {
             playerNameBtn.text = "#${playerId + 1}: 空"
             shadowTextView.text = "#${playerId + 1}"
-
+            playing = false
             if (field != value) {
+                // 新的id则重置设置
+                if (value != null) {
+                    qn = 150
+                    playerOptions = PlayerOptions()
+                    notifyPlayerOptionsChange()
+                }
                 // 新的id则弹幕清屏
                 danmuList.removeAll(danmuList)
                 danmuListViewAdapter.notifyDataSetInvalidated()
@@ -708,12 +715,6 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 isRecording = false
                 if (player?.isPlaying == null || player?.isPlaying == false) {
                     playerOptions.volume = 1f
-                }
-                // 新的id则重置设置
-                if (value != null) {
-                    playerOptions = PlayerOptions()
-                    qn = 150
-                    notifyPlayerOptionsChange()
                 }
             }
             field = value
@@ -1041,6 +1042,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                     refreshPlayer("ERROR:${error}")
                                 }
                             })
+                            playing = true
 
 //                                override fun onPlaybackStateChanged(state: Int) {
 //                                    super.onPlaybackStateChanged(state)
