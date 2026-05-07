@@ -6,7 +6,6 @@ import android.content.*
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.*
-import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -18,7 +17,6 @@ import android.os.IBinder
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
-import android.content.Context
 import androidx.core.app.NotificationCompat
 import android.widget.*
 import androidx.annotation.OptIn
@@ -46,6 +44,8 @@ import java.io.IOException
 import java.net.URL
 import java.util.*
 import java.util.regex.Pattern
+import androidx.core.net.toUri
+import androidx.core.view.isGone
 
 var headers = Headers.Builder().add(
         "accept", "application/json, text/plain, */*"
@@ -96,19 +96,17 @@ class MyForegroundService : Service() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Foreground Service Channel"
-            val descriptionText = "Channel for foreground service notifications"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-
-            // 注册通知渠道
-            val notificationManager: NotificationManager =
-                    getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+        val name = "Foreground Service Channel"
+        val descriptionText = "Channel for foreground service notifications"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+            description = descriptionText
         }
+
+        // 注册通知渠道
+        val notificationManager: NotificationManager =
+                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
     }
 }
 
@@ -222,7 +220,7 @@ class MainActivity : AppCompatActivity() {
 
         ddLayout.onPlayerClickListener = {
             if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
-                if (toolbar.visibility == View.GONE) {
+                if (toolbar.isGone) {
                     toolbar.visibility = View.VISIBLE
                 }
                 else {
@@ -286,6 +284,7 @@ class MainActivity : AppCompatActivity() {
                     catch (e: Exception) {
                         face.setImageDrawable(null)
                         shadow.setImageDrawable(null)
+                        Log.e("face", e.toString())
                     }
 
                     if (upInfo?.isLive == true) {
@@ -294,6 +293,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         catch (e: Exception) {
                             cover.setImageDrawable(null)
+                            Log.e("face", e.toString())
                         }
                     }
                     else {
@@ -391,13 +391,13 @@ class MainActivity : AppCompatActivity() {
                 if (it.itemId == R.id.open_live) {
                     try {
                         val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("bilibili://live/${uplist[i]}")
+                        intent.data = "bilibili://live/${uplist[i]}".toUri()
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
                     }
                     catch (e: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("https://live.bilibili.com/${uplist[i]}")
+                        intent.data = "https://live.bilibili.com/${uplist[i]}".toUri()
                         startActivity(intent)
                         Log.d("Exception", "Failed: $e")
                     }
@@ -419,7 +419,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 全局静音按钮
-        volumeBtn = findViewById<Button>(R.id.volume_btn)
+        volumeBtn = findViewById(R.id.volume_btn)
         volumeBtn.typeface = typeface
         volumeBtn.setOnClickListener {
 //            isGlobalMuted = !isGlobalMuted
@@ -481,13 +481,13 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("B站视频") { _, _ ->
                     try {
                         val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("bilibili://video/BV13y4y1b7bY")
+                        intent.data = "bilibili://video/BV13y4y1b7bY".toUri()
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
                     }
                     catch (e: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("https://www.bilibili.com/video/BV13y4y1b7bY")
+                        intent.data = "https://www.bilibili.com/video/BV13y4y1b7bY".toUri()
                         startActivity(intent)
                         Log.d("Exception", "Failed: $e")
                     }
@@ -712,7 +712,7 @@ class MainActivity : AppCompatActivity() {
     fun addRoomFromURL(url: URL) {
         if (url.host == "live.bilibili.com") {
             try {
-                """live\.bilibili\.com\/(?:[^/]+/)*?(\d+)""".toRegex()
+                """live\.bilibili\.com/(?:[^/]+/)*?(\d+)""".toRegex()
                     .find(url.toString())!!.groupValues[1].let {
                     addRoomId(it)
                 }
@@ -748,7 +748,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     try {
                         """"room_id":(\d+)""".toRegex()
-                            .find(response.body!!.string())!!.groupValues[1].let {
+                            .find(response.body.string())!!.groupValues[1].let {
                             addRoomId(it)
                         }
                     }
@@ -785,7 +785,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             else {
-                """(https?://\S+)""".toRegex().find(clip)?.groupValues?.get(1)?.let { it ->
+                """(https?://\S+)""".toRegex().find(clip)?.groupValues?.get(1)?.let {
                     val url = URL(it)
                     if (fromClip) {
                         AlertDialog.Builder(this).setTitle("尝试添加剪贴板的链接？").setMessage(it)
@@ -827,7 +827,7 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
                 Log.d("loadinfo", roomId)
-                response.body?.let {
+                response.body.let {
                     try {
                         val jo = JSONObject(it.string())
                         val code = jo.getInt("code")
@@ -835,7 +835,7 @@ class MainActivity : AppCompatActivity() {
                         val data = jo.getJSONObject("data")
                         val roomInfo = data.getJSONObject("room_info")
                         val anchorInfo =
-                                data.getJSONObject("anchor_info").getJSONObject("base_info")
+                            data.getJSONObject("anchor_info").getJSONObject("base_info")
 
                         val realRoomId = roomInfo.getString("room_id")
 
@@ -858,23 +858,22 @@ class MainActivity : AppCompatActivity() {
                         upinfos[realRoomId] = upInfo
                         finished?.invoke(realRoomId)
 
-//                        if (uplist.indexOf(roomId) == uplist.count() - 1) {
-//                            uplist.sortByDescending { id ->
-//                                if (upinfos.containsKey(id)) upinfos[id]?.isLive else false
-//                            }
-//                        }
+            //                        if (uplist.indexOf(roomId) == uplist.count() - 1) {
+            //                            uplist.sortByDescending { id ->
+            //                                if (upinfos.containsKey(id)) upinfos[id]?.isLive else false
+            //                            }
+            //                        }
 
 
                         runOnUiThread {
                             uplistviewAdapter.notifyDataSetInvalidated()
                         }
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         Log.d("Exception", e.toString())
                         runOnUiThread {
                             Toast.makeText(
-                                    this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT
-                                          ).show()
+                                this@MainActivity, "查询id失败 $roomId", Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
 
@@ -914,7 +913,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     return
                 }
-                response.body?.let {
+                response.body.let {
                     try {
                         val jo = JSONObject(it.string())
                         val code = jo.getInt("code")
@@ -926,15 +925,14 @@ class MainActivity : AppCompatActivity() {
                         for (k in res.keys()) {
                             try {
                                 uids.add(res.getJSONObject(k).getString("uid"))
-                            }
-                            catch (e: Exception) {
+                            } catch (e: Exception) {
                                 Log.d("Exception", "Request Failed: $e")
                                 runOnUiThread {
                                     Toast.makeText(
-                                            this@MainActivity,
-                                            "Request Failed: $e",
-                                            Toast.LENGTH_SHORT
-                                                  ).show()
+                                        this@MainActivity,
+                                        "Request Failed: $e",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         }
@@ -942,18 +940,18 @@ class MainActivity : AppCompatActivity() {
                         val body1 = Gson().toJson(mapOf(Pair("uids", uids)))
                             .toRequestBody("application/json; charset=utf-8".toMediaType())
                         OkHttpClient().newCall(
-                                Request.Builder()
-                                    .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
-                                    .method("POST", body1).headers(headers).build()
-                                              ).enqueue(object : Callback {
+                            Request.Builder()
+                                .url("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids")
+                                .method("POST", body1).headers(headers).build()
+                        ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
                                 Log.d("Exception", "加载信息失败: $e")
                                 runOnUiThread {
                                     Toast.makeText(
-                                            this@MainActivity,
-                                            "加载信息失败: $e",
-                                            Toast.LENGTH_SHORT
-                                                  ).show()
+                                        this@MainActivity,
+                                        "加载信息失败: $e",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
 
@@ -963,19 +961,19 @@ class MainActivity : AppCompatActivity() {
                                     Log.d("Exception", "Request failed with code: ${response.code}")
                                     runOnUiThread {
                                         Toast.makeText(
-                                                this@MainActivity,
-                                                "Request failed with code: ${response.code}",
-                                                Toast.LENGTH_SHORT
-                                                      ).show()
+                                            this@MainActivity,
+                                            "Request failed with code: ${response.code}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                     return
                                 }
-                                response.body?.let { it1 ->
+                                response.body.let { it1 ->
                                     try {
                                         val jo1 = JSONObject(it1.string())
                                         val code1 = jo1.getInt("code")
                                         require(code1 == 0) { "Return Code Error:$code1" }
-//                                        Log.d("loadinfo", jo1.toString())
+                                        //                                        Log.d("loadinfo", jo1.toString())
                                         val res1 = jo1.getJSONObject("data")
                                         val reportLiveStartingList = mutableListOf<String>()
 
@@ -1006,20 +1004,19 @@ class MainActivity : AppCompatActivity() {
                                                 var keyframe = data.getString("keyframe")
                                                 if (keyframe.startsWith("http://")) {
                                                     keyframe =
-                                                            keyframe.replace("http://", "https://")
+                                                        keyframe.replace("http://", "https://")
                                                 }
                                                 upInfo.coverImageUrl = keyframe
 
 
-                                            }
-                                            catch (e: Exception) {
+                                            } catch (e: Exception) {
                                                 Log.d("Exception", "Request Failed: $e")
                                                 runOnUiThread {
                                                     Toast.makeText(
-                                                            this@MainActivity,
-                                                            "Request Failed: $e",
-                                                            Toast.LENGTH_SHORT
-                                                                  ).show()
+                                                        this@MainActivity,
+                                                        "Request Failed: $e",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             }
 
@@ -1034,22 +1031,22 @@ class MainActivity : AppCompatActivity() {
                                             if (reportLiveStartingList.count() > 0) {
                                                 if (reportLiveStarting) {
                                                     // 开播提醒
-//                                                    Toast.makeText(
-//                                                            this@MainActivity,
-//                                                            "${reportLiveStartingList.joinToString(", ")} 开播了",
-//                                                            Toast.LENGTH_LONG
-//                                                    ).show()
+                                                    //                                                    Toast.makeText(
+                                                    //                                                            this@MainActivity,
+                                                    //                                                            "${reportLiveStartingList.joinToString(", ")} 开播了",
+                                                    //                                                            Toast.LENGTH_LONG
+                                                    //                                                    ).show()
                                                     Snackbar.make(
-                                                            window.decorView,
-                                                            "${reportLiveStartingList.joinToString(", ")} 开播了",
-                                                            Snackbar.LENGTH_LONG
-                                                                 ).setAction("关闭") {}.show()
+                                                        window.decorView,
+                                                        "${reportLiveStartingList.joinToString(", ")} 开播了",
+                                                        Snackbar.LENGTH_LONG
+                                                    ).setAction("关闭") {}.show()
                                                 }
                                                 for (i in 0 until ddLayout.layoutPlayerCount) {
                                                     val p = ddLayout.players[i]
                                                     if (p.roomId != null && reportLiveStartingList.contains(
-                                                                    p.roomId
-                                                                                                           )
+                                                            p.roomId
+                                                        )
                                                     ) {
                                                         p.roomId = p.roomId
                                                     }
@@ -1057,15 +1054,14 @@ class MainActivity : AppCompatActivity() {
                                             }
 
                                         }
-                                    }
-                                    catch (e: Exception) {
+                                    } catch (e: Exception) {
                                         Log.d("Exception", "Request Failed: $e")
                                         runOnUiThread {
                                             Toast.makeText(
-                                                    this@MainActivity,
-                                                    "查询信息失败 $e",
-                                                    Toast.LENGTH_SHORT
-                                                          ).show()
+                                                this@MainActivity,
+                                                "查询信息失败 $e",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
                                 }
@@ -1075,13 +1071,12 @@ class MainActivity : AppCompatActivity() {
                         })
 
 
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         e.printStackTrace()
                         runOnUiThread {
                             Toast.makeText(
-                                    this@MainActivity, "查询信息失败 $e", Toast.LENGTH_SHORT
-                                          ).show()
+                                this@MainActivity, "查询信息失败 $e", Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                 }

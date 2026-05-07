@@ -31,7 +31,7 @@ class DDLayout @OptIn(UnstableApi::class) constructor(context: Context?) : Linea
 
     init {
         layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
                                              )
 //        this.layoutId = 2
 
@@ -135,7 +135,7 @@ class DDLayout @OptIn(UnstableApi::class) constructor(context: Context?) : Linea
                                                    )
         stackview = inflate(context, resId, null)
         stackview?.layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
                                                         )
         addView(stackview)
 

@@ -9,7 +9,6 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
@@ -78,6 +77,7 @@ import com.hyc.dd_monitor.sub_key
 import android.content.ClipboardManager
 import androidx.media3.common.PlaybackException
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import androidx.core.view.isVisible
 
 @UnstableApi
 class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
@@ -208,10 +208,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
         liveHeaders["connection"] = "Upgrade"
 
         layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT
                                              )
 
-        View.inflate(context, R.layout.dd_player, this)
+        inflate(context, R.layout.dd_player, this)
         Log.d("DDPlayer", "init")
 
         playerNameBtn = findViewById(R.id.player_name_btn)
@@ -255,7 +255,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             }
 
             override fun getView(p0: Int, p1: View?, p2: ViewGroup?): View {
-                val view = p1 ?: View.inflate(context, R.layout.item_danmu_text, null)
+                val view = p1 ?: inflate(context, R.layout.item_danmu_text, null)
                 val textview = view.findViewById<TextView>(R.id.danmu_textView)
                 val imgview = view.findViewById<ImageView>(R.id.danmu_imgview)
                 val danmuObj = danmuList[p0]
@@ -280,19 +280,21 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             val danmu = danmuList[i]
             val pop = PopupMenu(context, view)
             pop.menuInflater.inflate(R.menu.danmu_clear, pop.menu)
-            pop.setOnMenuItemClickListener { it ->
-                if (it.itemId == R.id.danmu_clear) {
-                    danmuList.remove(danmu)
-                    danmuListViewAdapter.notifyDataSetInvalidated()
-                }
-                else if (it.itemId == R.id.danmu_clear_all) {
-                    danmuList.removeAll(danmuList)
-                    danmuListViewAdapter.notifyDataSetInvalidated()
-                }
-                else if (it.itemId == R.id.danmu_copy) {
-                    context.getSystemService(Context.CLIPBOARD_SERVICE)?.apply {
-                        if (this is ClipboardManager) {
-                            setPrimaryClip(ClipData.newPlainText("label", danmu.first))
+            pop.setOnMenuItemClickListener {
+                when (it.itemId) {
+                    R.id.danmu_clear -> {
+                        danmuList.remove(danmu)
+                        danmuListViewAdapter.notifyDataSetInvalidated()
+                    }
+                    R.id.danmu_clear_all -> {
+                        danmuList.removeAll(danmuList)
+                        danmuListViewAdapter.notifyDataSetInvalidated()
+                    }
+                    R.id.danmu_copy -> {
+                        context.getSystemService(Context.CLIPBOARD_SERVICE)?.apply {
+                            if (this is ClipboardManager) {
+                                setPrimaryClip(ClipData.newPlainText("label", danmu.first))
+                            }
                         }
                     }
                 }
@@ -315,7 +317,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             }
 
             override fun getView(p0: Int, p1: View?, p2: ViewGroup?): View {
-                val view = p1 ?: View.inflate(context, R.layout.item_danmu_text, null)
+                val view = p1 ?: inflate(context, R.layout.item_danmu_text, null)
                 val textview = view.findViewById<TextView>(R.id.danmu_textView)
                 textview.text = interpreterList[p0]
 
@@ -352,18 +354,20 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             val pop = PopupMenu(context, view)
             pop.menuInflater.inflate(R.menu.danmu_clear, pop.menu)
             pop.setOnMenuItemClickListener {
-                if (it.itemId == R.id.danmu_clear) {
-                    interpreterList.remove(danmu)
-                    interpreterViewAdapter.notifyDataSetInvalidated()
-                }
-                else if (it.itemId == R.id.danmu_clear_all) {
-                    interpreterList.removeAll(interpreterList)
-                    interpreterViewAdapter.notifyDataSetInvalidated()
-                }
-                else if (it.itemId == R.id.danmu_copy) {
-                    context.getSystemService(Context.CLIPBOARD_SERVICE)?.apply {
-                        if (this is ClipboardManager) {
-                            setPrimaryClip(ClipData.newPlainText("label", danmu))
+                when (it.itemId) {
+                    R.id.danmu_clear -> {
+                        interpreterList.remove(danmu)
+                        interpreterViewAdapter.notifyDataSetInvalidated()
+                    }
+                    R.id.danmu_clear_all -> {
+                        interpreterList.removeAll(interpreterList)
+                        interpreterViewAdapter.notifyDataSetInvalidated()
+                    }
+                    R.id.danmu_copy -> {
+                        context.getSystemService(Context.CLIPBOARD_SERVICE)?.apply {
+                            if (this is ClipboardManager) {
+                                setPrimaryClip(ClipData.newPlainText("label", danmu))
+                            }
                         }
                     }
                 }
@@ -404,7 +408,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                 if (it.itemId == R.id.open_live) {
                     try {
                         val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("bilibili://live/$roomId")
+                        intent.data = "bilibili://live/$roomId".toUri()
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         context.startActivity(intent)
 
@@ -413,7 +417,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     catch (_: Exception) {
                         val intent = Intent(Intent.ACTION_VIEW)
-                        intent.data = Uri.parse("https://live.bilibili.com/$roomId")
+                        intent.data = "https://live.bilibili.com/$roomId".toUri()
                         context.startActivity(intent)
                     }
 
@@ -469,7 +473,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             "layoutId",
                             arrayOf(ClipDescription.MIMETYPE_TEXT_PLAIN),
                             ClipData.Item(this@DDPlayer.playerId.toString())
-                            ), DragShadowBuilder(shadowView), null, View.DRAG_FLAG_GLOBAL
+                            ), DragShadowBuilder(shadowView), null, DRAG_FLAG_GLOBAL
                             )
             return@setOnLongClickListener true
         }
@@ -519,7 +523,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
         setOnClickListener {
             // 单击显示/隐藏工具条
-            if (controlBar.visibility == VISIBLE) {
+            if (controlBar.isVisible) {
                 controlBar.visibility = INVISIBLE
             }
             else {
@@ -741,6 +745,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
             }
             catch (e: Exception) {
                 field = null
+                Log.e("room init",e.toString())
                 return
             }
             // 到这了就表示不为空了，开始加载
@@ -798,7 +803,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     return
                 }
-                response.body?.let {
+                response.body.let {
                     try {
                         val jo = JSONObject(it.string())
                         val code = jo.getInt("code")
@@ -806,12 +811,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         val data = jo.getJSONObject("data")
                         val roomInfo = data.getJSONObject("room_info")
                         val anchorInfo =
-                                data.getJSONObject("anchor_info").getJSONObject("base_info")
+                            data.getJSONObject("anchor_info").getJSONObject("base_info")
 
                         val liveStatus = if (roomInfo.getInt("live_status") == 1) "" else "(未开播)"
                         val uname = anchorInfo.getString("uname")
                         val face = anchorInfo.getString("face").replace("http://", "https://")
-//                            Log.d("shadowFaceImg", shadowFaceImg)
+            //                            Log.d("shadowFaceImg", shadowFaceImg)
                         myHandler.post {
                             playerNameBtn.text = "#${playerId + 1}: $liveStatus$uname"
                             shadowTextView.text = "#${playerId + 1}"
@@ -819,9 +824,9 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 Glide.with(context).load(face).circleCrop()
                                     .into(shadowFaceImg) // 用于拖动的头像view
 
-                            }
-                            catch (e: Exception) {
+                            } catch (e: Exception) {
                                 shadowFaceImg.setImageDrawable(null)
+                                Log.e("face", e.toString())
                             }
                         }
                         if (liveStatus.isEmpty()) {
@@ -829,12 +834,10 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             connectVideo()
                             // 连接弹幕socket
                             getDanmuInfo()
-                        }
-                        else {
+                        } else {
 
                         }
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         Log.d("Exception", "Request failed: $e")
                         myHandler.post {
                             addMsg("[系统]获取用户信息失败，${e}")
@@ -873,7 +876,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     return
                 }
-                response.body?.let {
+                response.body.let {
                     try {
                         val bodyString = it.string()
                         Log.d("loadinfo", bodyString)
@@ -886,15 +889,12 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                         Log.d("Updated Token", token)
                         Log.d("Updated Host", host)
                         connectDanmu()
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         Log.d("Exception", "Parsing error: $e")
                         myHandler.post {
                             addMsg("[系统]连接弹幕失败，${e}")
                         }
                     }
-                } ?: run {
-                    Log.d("Exception", "Response body is null")
                 }
             }
         })
@@ -927,11 +927,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                     }
                     return
                 }
-                response.body?.let { it2 ->
+                response.body.let { it2 ->
                     var url = ""
                     try {
                         val urlList =
-                                JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
+                            JSONObject(it2.string()).getJSONObject("data").getJSONArray("durl")
                         for (i in 0 until urlList.length()) {
                             val tURL = urlList.getJSONObject(i).getString("url")
                             if ("gotcha" in tURL.substringBefore('?') || i == urlList.length() - 1) {
@@ -940,8 +940,7 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             }
                         }
 
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         Log.d("Exception", "Request failed: $e")
                         myHandler.post {
                             addMsg("[系统] 获取播放链接失败，${e}")
@@ -962,52 +961,50 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                 when (parts[3]) {
                                     "4000" -> {
                                         ql = "蓝光"
-                                        realQn = 400;
-                                        qn = 400;
+                                        realQn = 400
+                                        qn = 400
                                     }
 
                                     "2500" -> {
                                         ql = "超清"
-                                        realQn = 250;
-                                        qn = 250;
+                                        realQn = 250
+                                        qn = 250
                                     }
 
                                     "1500" -> {
                                         ql = "高清"
-                                        realQn = 150;
-                                        qn = 150;
+                                        realQn = 150
+                                        qn = 150
                                     }
 
                                     "bluray" -> {
                                         ql = "二压原画"
-                                        realQn = 10000;
-                                        qn = 10000;
+                                        realQn = 10000
+                                        qn = 10000
                                     }
                                 }
-                            }
-                            else {
+                            } else {
                                 ql = "原画"
-                                realQn = 10000;
-                                qn = 10000;
+                                realQn = 10000
+                                qn = 10000
                             }
                         }
-                    }
-                    catch (e: Exception) {
+                    } catch (e: Exception) {
                         Log.d("Exception", "URL parsing error: $e")
                     }
                     val dataSourceFactory =
-                            DefaultDataSource.Factory(context).setTransferListener(transferListener)
+                        DefaultDataSource.Factory(context).setTransferListener(transferListener)
                     val mediaSourceFactory =
-                            DefaultMediaSourceFactory(context).setDataSourceFactory(
-                                    dataSourceFactory
-                                                                                   )
+                        DefaultMediaSourceFactory(context).setDataSourceFactory(
+                            dataSourceFactory
+                        )
 
 
                     myHandler.post {
                         addMsg("[系统] 成功获得播放链接:${url.substringBefore('?')}，当前画质：${ql}，格式：${format}")
                         player =
-                                ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory)
-                                    .build()
+                            ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory)
+                                .build()
 
                         playerView.player = player
                         player!!.volume = if (isGlobalMuted) 0f else playerOptions.volume
@@ -1044,29 +1041,28 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             })
                             playing = true
 
-//                                override fun onPlaybackStateChanged(state: Int) {
-//                                    super.onPlaybackStateChanged(state)
-//                                    if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
-//                                        // 播放结束或空闲时，尝试重新加载媒体
-//                                        val msg =
-//                                                if (state == Player.STATE_ENDED) "STATE_ENDED" else "STATE_IDLE"
-//                                        refreshPlayer(msg)
-//                                    }
-//                                }
-//                            })
+            //                                override fun onPlaybackStateChanged(state: Int) {
+            //                                    super.onPlaybackStateChanged(state)
+            //                                    if (state == Player.STATE_ENDED || state == Player.STATE_IDLE) {
+            //                                        // 播放结束或空闲时，尝试重新加载媒体
+            //                                        val msg =
+            //                                                if (state == Player.STATE_ENDED) "STATE_ENDED" else "STATE_IDLE"
+            //                                        refreshPlayer(msg)
+            //                                    }
+            //                                }
+            //                            })
 
 
-//                                val factory = DefaultHttpDataSource.Factory()
-//                                factory.setDefaultRequestProperties(mapOf(
-//                                    "User-Agent" to WebView(context).settings.userAgentString,
-//                                    "Referer" to "https://live.bilibili.com/"
-//                                ))
-//                                val mediaSource = ProgressiveMediaSource.Factory(factory)
-//                                    .createMediaSource(MediaItem.fromUri(url))
-//                                player!!.setMediaSource(mediaSource)
+            //                                val factory = DefaultHttpDataSource.Factory()
+            //                                factory.setDefaultRequestProperties(mapOf(
+            //                                    "User-Agent" to WebView(context).settings.userAgentString,
+            //                                    "Referer" to "https://live.bilibili.com/"
+            //                                ))
+            //                                val mediaSource = ProgressiveMediaSource.Factory(factory)
+            //                                    .createMediaSource(MediaItem.fromUri(url))
+            //                                player!!.setMediaSource(mediaSource)
                         }
-                    }
-                    else {
+                    } else {
                         Log.d("debug54", "record")
                         var total: Long = 0
 
@@ -1077,27 +1073,26 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                     Log.d("isplaying", isPlaying.toString())
                                     if (isPlaying) {
                                         recordingView.visibility = VISIBLE
-//                                            recordingDuration.text = "0:00"
+            //                                            recordingDuration.text = "0:00"
                                         recordingSize.text = RecordingUtils.byteString(total)
                                         recordingTimer = Timer()
                                         recordingTimer!!.schedule(object : TimerTask() {
                                             override fun run() {
                                                 myHandler.post {
                                                     recordingDurationLong += 1
-//                                                        recordingDuration.text = ByteUtils.minuteString(recordingDurationLong)
+            //                                                        recordingDuration.text = ByteUtils.minuteString(recordingDurationLong)
                                                     recordingSize.text =
-                                                            RecordingUtils.byteString(total)
+                                                        RecordingUtils.byteString(total)
                                                 }
 
                                             }
                                         }, 1000, 1000)
-                                    }
-                                    else {
+                                    } else {
                                         Handler(Looper.getMainLooper()).post {
-//                                                if (isRecording) {
-//                                                    isRecording = false
-//                                                    roomId = this@DDPlayer.roomId
-//                                                }
+            //                                                if (isRecording) {
+            //                                                    isRecording = false
+            //                                                    roomId = this@DDPlayer.roomId
+            //                                                }
                                             player?.play()
                                         }
                                     }
@@ -1107,8 +1102,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
 
 
                         OkHttpClient().newCall(
-                                Request.Builder().headers(liveHeaders.build()).url(url).build()
-                                              ).enqueue(object : Callback {
+                            Request.Builder().headers(liveHeaders.build()).url(url).build()
+                        ).enqueue(object : Callback {
                             override fun onFailure(call: Call, e: IOException) {
                                 Log.d("debug54", "response onFailure")
                                 e.printStackTrace()
@@ -1117,17 +1112,17 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             override fun onResponse(call: Call, response: Response) {
                                 Log.d("debug54", "response.code ${response.code}")
                                 response.header("Content-Type", "")?.let { Log.d("debug54", it) }
-//                                    if (response.code != 475) {
-//                                        __handler.post {
-//                                            isRecording = false
-//                                            roomId = this@DDPlayer.roomId
-//                                        }
-//                                        return
-//                                    }
+            //                                    if (response.code != 475) {
+            //                                        __handler.post {
+            //                                            isRecording = false
+            //                                            roomId = this@DDPlayer.roomId
+            //                                        }
+            //                                        return
+            //                                    }
                                 try {
-                                    val byteStream = response.body!!.byteStream()
+                                    val byteStream = response.body.byteStream()
                                     val dir =
-                                            File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
+                                        File("${Environment.getExternalStorageDirectory().path}/DDPlayer/Records/$roomId/")
                                     if (!dir.exists()) dir.mkdirs()
 
                                     val cacheFile = File(dir, "$startTime.flv")
@@ -1158,15 +1153,14 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                         player?.stop()
                                         roomId = this@DDPlayer.roomId
                                         Toast.makeText(
-                                                context,
-                                                "录像已保存${cacheFile.path}",
-                                                Toast.LENGTH_SHORT
-                                                      ).show()
+                                            context,
+                                            "录像已保存${cacheFile.path}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                     outputStream.close()
 
-                                }
-                                catch (e: Exception) {
+                                } catch (e: Exception) {
                                     e.printStackTrace()
                                     if (isRecording) {
                                         isRecording = false
@@ -1360,11 +1354,11 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                                             .getJSONObject(13).getString("url")
                                     }
                                     catch (e0: Exception) {
-//                                    e0.printStackTrace()
+                                    e0.printStackTrace()
                                     }
                                     val danmu = jobj.getJSONArray("info").getString(1)
 
-//                                Log.d("danmu", "$roomId $danmu")
+                                    Log.d("danmu", "$roomId $danmu")
                                     myHandler.post {
                                         addMsg(danmu, emojiUrl)
                                     }
@@ -1423,8 +1417,8 @@ class DDPlayer(context: Context, playerId: Int) : ConstraintLayout(context) {
                             }
                         }
                         catch (e: Exception) {
-//                            Log.d("danmu", e.toString() + " " + e.message)
-//                            e.printStackTrace()
+                            Log.d("danmu", e.toString() + " " + e.message)
+                            e.printStackTrace()
                         }
 
                     }
